@@ -1,5 +1,5 @@
 import streamlit as st
-from streamlit_dash import st_dash
+from streamlit_dash import st_dashapp
 
 # Import the Dash app object from your script
 from Interactive_Cross_Species_LLE import app as dash_app
