@@ -4,3 +4,5 @@ pandas
 plotly
 scikit-learn
 nibabel
+streamlit-dash
+dash
