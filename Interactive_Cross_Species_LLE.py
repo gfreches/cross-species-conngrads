@@ -7,7 +7,7 @@ import plotly.graph_objects as go
 from sklearn.metrics.pairwise import euclidean_distances
 
 # --- Config ---
-NPZ_FILE_PATH = "data/gradient_outputs_cross_species_embedding_data_2Species_LR_Combined.npz"
+NPZ_FILE_PATH = "data/gradient_outputs/cross_species_embedding_data_2Species_LR_Combined.npz"
 DOWNSAMPLED_BP_DIR = "data/downsampled_temporal_lobe_blueprints"
 AVERAGE_BP_DIR = "data/temporal_lobe_average_blueprints"
 N_TRACTS_EXPECTED = 20
