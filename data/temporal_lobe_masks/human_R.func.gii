@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!DOCTYPE GIFTI
+  PUBLIC "SYSTEM" "http://gifti.projects.nitrc.org/gifti.dtd">
+<GIFTI NumberOfDataArrays="1" Version="1.0">
+   <MetaData>
+      <MD>
+         <Name>Created</Name>
+         <Value>16-Dec-2020 12:48:32</Value>
+      </MD>
+      <MD>
+         <Name>AnatomicalStructurePrimary</Name>
+         <Value>CortexRight</Value>
+      </MD>
+   </MetaData>
+   <DataArray ArrayIndexingOrder="RowMajorOrder" DataType="NIFTI_TYPE_FLOAT32" Dim0="32492"
+              Dimensionality="1"
+              Encoding="GZipBase64Binary"
+              Endian="LittleEndian"
+              ExternalFileName=""
+              ExternalFileOffset=""
+              Intent="NIFTI_INTENT_NONE">
+      <MetaData/>
+      <Data>eJzt3UluwzAMBdDcLFfL0YvuO8i2JA56D+CqEvmZts6iQPp6jfi8h44BAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAALDZ5/28upvxGmWoarru3HGvTjt1+X3r8uyovkfl5/js7Lvyr8i9MvuqvJVzV8o6O6+sc3Nmz3hqPrn2ZMqUJ0uWrjmiM5w4+4SZHWd1mFGxd4WeGXvN6PO0x5P7d+/euXf1zpXzo2dHzv135q+vn+LuM2Hk2QAAAAAAAAAAAAAAAAAAAAAAAACQSffPXuu6W8e97JR7ny67nLpHNiflz6Zz7myq5f1WKeu3ijkzy54PAAAAAAAAAAAAAAAAAAAAAAAAAAAAsrrzOfiVqoMn+0W//koppc6o6u87ld87q773V8xdLXOlvFWyVsiZPWPmfFmzZcyVLdNPTs+SIUd0hsj5UbMj5u6euXPebyrutHrGyv6req/oO7vnzH6zemXo8eT+3bt37q08P3p25Nx/uzHX3d/hCt8Le9kpSqd9Ttwjq+o7VM7fOXc21TLLOl+Fn4HsGTM/s7Jmy5grW6ZM7+NXsqzMkyFHdIbI+VGzI+buntlxVpYZWftH9M3SM2OvDD0i7j65s+L87HMAAAAAAAC7rfobNgAAAAAAAAAAAAAAAAAAAAAAwIir/3fnanXeLWrPnXvt2jd6n9n7ReefuVN07lk7RmdTSimllFJKKaWUUiq2vgBFz6VD</Data>
+   </DataArray>
+</GIFTI>

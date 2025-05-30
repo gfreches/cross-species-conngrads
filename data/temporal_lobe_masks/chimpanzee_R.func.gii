@@ -1,0 +1,88 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<GIFTI xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+       xsi:noNamespaceSchemaLocation="http://brainvis.wustl.edu/caret6/xml_schemas/GIFTI_Caret.xsd"
+       Version="1"
+       NumberOfDataArrays="2">
+   <MetaData>
+      <MD>
+         <Name><![CDATA[AnatomicalStructurePrimary]]></Name>
+         <Value><![CDATA[CortexRight]]></Value>
+      </MD>
+   </MetaData>
+   <LabelTable>
+      <Label Key="0" Red="1" Green="1" Blue="1" Alpha="0"><![CDATA[???]]></Label>
+   </LabelTable>
+<DataArray Intent="NIFTI_INTENT_NORMAL"
+           DataType="NIFTI_TYPE_FLOAT32"
+           ArrayIndexingOrder="RowMajorOrder"
+           Dimensionality="1"
+           Dim0="20252"
+           Encoding="GZipBase64Binary"
+           Endian="LittleEndian"
+           ExternalFileName=""
+           ExternalFileOffset="0">
+   <MetaData>
+      <MD>
+         <Name><![CDATA[Name]]></Name>
+         <Value><![CDATA[temp_r_fix]]></Value>
+      </MD>
+      <MD>
+         <Name><![CDATA[PaletteColorMapping]]></Name>
+         <Value><![CDATA[<PaletteColorMapping Version="1">
+   <ScaleMode>MODE_AUTO_SCALE_ABSOLUTE_PERCENTAGE</ScaleMode>
+   <AutoScalePercentageValues>98.000000 2.000000 2.000000 98.000000</AutoScalePercentageValues>
+   <AutoScaleAbsolutePercentageValues>2.000000 98.000000</AutoScaleAbsolutePercentageValues>
+   <UserScaleValues>-100.000000 0.000000 0.000000 100.000000</UserScaleValues>
+   <PaletteName>ROY-BIG-BL</PaletteName>
+   <InterpolatePalette>true</InterpolatePalette>
+   <InvertPalette>OFF</InvertPalette>
+   <DisplayPositiveData>true</DisplayPositiveData>
+   <DisplayZeroData>false</DisplayZeroData>
+   <DisplayNegativeData>true</DisplayNegativeData>
+   <ThresholdTest>THRESHOLD_TEST_SHOW_OUTSIDE</ThresholdTest>
+   <ThresholdType>THRESHOLD_TYPE_OFF</ThresholdType>
+   <ThresholdFailureInGreen>false</ThresholdFailureInGreen>
+   <ThresholdNormalValues>-1.000000 1.000000</ThresholdNormalValues>
+   <ThresholdMappedValues>-1.000000 1.000000</ThresholdMappedValues>
+   <ThresholdMappedAvgAreaValues>-1.000000 1.000000</ThresholdMappedAvgAreaValues>
+   <ThresholdDataName></ThresholdDataName>
+   <ThresholdRangeMode>PALETTE_THRESHOLD_RANGE_MODE_FILE</ThresholdRangeMode>
+   <ThresholdLowHighLinked>false</ThresholdLowHighLinked>
+   <ThresholdOutlineDrawingMode>OFF</ThresholdOutlineDrawingMode>
+   <ThresholdOutlineDrawingColor>WHITE</ThresholdOutlineDrawingColor>
+   <HistogramRangeMode>PALETTE_HISTOGRAM_RANGE_ALL</HistogramRangeMode>
+   <HistogramBarsVisible>true</HistogramBarsVisible>
+   <HistogramEnvelopeVisible>false</HistogramEnvelopeVisible>
+   <HistogramBarsColor>CUSTOM</HistogramBarsColor>
+   <HistogramEnvelopeColor>RED</HistogramEnvelopeColor>
+   <HistogramEnvelopeLineWidthPercentage>0.5</HistogramEnvelopeLineWidthPercentage>
+   <HistogramNumberOfBuckets>100</HistogramNumberOfBuckets>
+   <NumericFormatMode>AUTO</NumericFormatMode>
+   <PrecisionDigits>2</PrecisionDigits>
+   <NumericSubivisions>0</NumericSubivisions>
+   <ColorBarValuesMode>DATA</ColorBarValuesMode>
+   <ShowTickMarksSelected>false</ShowTickMarksSelected>
+</PaletteColorMapping>
+]]></Value>
+      </MD>
+   </MetaData>
+   <Data>eJzt3QFqwkAQBVBv1qv16FJEkGA0m53dnUnfgw9Fk5kxicYUa2+3b35/Hnn+TLznNs62fV/n2gsAAACc9em6cu++7e3b61PXsQAAAAAAAAAAAAAAAAAAAMBVXeX7FI581+HKVFBp9gpzZp8x83wZZ8v4/MgyU5bXvwyvxRnOCStnWHVeXHVOXtF3Zs/WXj39ZvWa0Wd0j5H1R9UeUTe6ZmS9qFoRdVbUiFh3xnqt67Qsf3TZI8t9W+bT/Xv3vdtH29sqOHM88784BgAAAAAAAAAAAAAA+FPp7w6qz5pRtRmzyjwbAAAAAAAAAAAAAAAAAAD5tf6PwivGdhARERERERGpmSyu8jhemTNO9v2e+djM+vzJOJd58s+SYY7VM6zsv+p5u6Lv7J4z3+8c7dXbb0aflh5n+lSsXaFmZL2oWhF1emv0rH923TPrtR67I5a9YjLJOhcAAADzzLjOjbymnnEdPmvOKFEzjlbh9yeVZ1vt3XGVRcZ5AAAAAAAAAAAAgD4zPle8ataWz/xGPr7ez1GPSoUZ9/aXiIiIiIjII3eozplz</Data>
+</DataArray>
+<DataArray Intent="NIFTI_INTENT_NORMAL"
+           DataType="NIFTI_TYPE_FLOAT32"
+           ArrayIndexingOrder="RowMajorOrder"
+           Dimensionality="1"
+           Dim0="20252"
+           Encoding="GZipBase64Binary"
+           Endian="LittleEndian"
+           ExternalFileName=""
+           ExternalFileOffset="0">
+   <MetaData>
+      <MD>
+         <Name><![CDATA[Name]]></Name>
+         <Value><![CDATA[temp_r_fix]]></Value>
+      </MD>
+   </MetaData>
+   <Data>eJzt3QFqwkAQBVBv1qv16FJEkGA0m53dnUnfgw9Fk5kxicYUa2+3b35/Hnn+TLznNs62fV/n2gsAAACc9em6cu++7e3b61PXsQAAAAAAAAAAAAAAAAAAAMBVXeX7FI581+HKVFBp9gpzZp8x83wZZ8v4/MgyU5bXvwyvxRnOCStnWHVeXHVOXtF3Zs/WXj39ZvWa0Wd0j5H1R9UeUTe6ZmS9qFoRdVbUiFh3xnqt67Qsf3TZI8t9W+bT/Xv3vdtH29sqOHM88784BgAAAAAAAAAAAAAA+FPp7w6qz5pRtRmzyjwbAAAAAAAAAAAAAAAAAAD5tf6PwivGdhARERERERGpmSyu8jhemTNO9v2e+djM+vzJOJd58s+SYY7VM6zsv+p5u6Lv7J4z3+8c7dXbb0aflh5n+lSsXaFmZL2oWhF1emv0rH923TPrtR67I5a9YjLJOhcAAADzzLjOjbymnnEdPmvOKFEzjlbh9yeVZ1vt3XGVRcZ5AAAAAAAAAAAAgD4zPle8ataWz/xGPr7ez1GPSoUZ9/aXiIiIiIjII3eozplz</Data>
+</DataArray>
+</GIFTI>

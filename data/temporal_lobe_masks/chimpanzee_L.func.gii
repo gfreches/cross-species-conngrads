@@ -1,0 +1,63 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<GIFTI xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+       xsi:noNamespaceSchemaLocation="http://brainvis.wustl.edu/caret6/xml_schemas/GIFTI_Caret.xsd"
+       Version="1"
+       NumberOfDataArrays="1">
+   <MetaData>
+      <MD>
+         <Name><![CDATA[AnatomicalStructurePrimary]]></Name>
+         <Value><![CDATA[CortexLeft]]></Value>
+      </MD>
+      <MD>
+         <Name><![CDATA[ParentProvenance]]></Name>
+         <Value><![CDATA[/Users/guilhermeblazquezfreches/Desktop/Thesis/Data/surfaces/chimpanzee/ChimpYerkes29.L.inflated.20k_fs_LR.surf.gii:
+/media/2TBB/Connectome_Project/Pipelines/global/binaries/caret7/bin_rh_linux64/../exe_rh_linux64/wb_command -surface-resample /media/myelin/brainmappers/MyelinMapping_Project/Chimps/Agatha_Preuss_20110211/MNINonLinear/Native/Agatha_Preuss_20110211.L.midthickness.native.surf.gii /media/myelin/brainmappers/MyelinMapping_Project/Chimps/Agatha_Preuss_20110211/MNINonLinear/Native/Agatha_Preuss_20110211.L.sphere.MSMSulc.native.surf.gii /media/myelin/brainmappers/MyelinMapping_Project/Chimps/Agatha_Preuss_20110211/MNINonLinear/fsaverage_LR20k/Agatha_Preuss_20110211.L.sphere.20k_fs_LR.surf.gii BARYCENTRIC /media/myelin/brainmappers/MyelinMapping_Project/Chimps/Agatha_Preuss_20110211/MNINonLinear/fsaverage_LR20k/Agatha_Preuss_20110211.L.midthickness.20k_fs_LR.surf.gii
+
+]]></Value>
+      </MD>
+      <MD>
+         <Name><![CDATA[ProgramProvenance]]></Name>
+         <Value><![CDATA[Connectome Workbench
+Type: Command Line Application
+Version: 2.0.1
+Qt Compiled Version: 6.2.3
+Qt Runtime Version: 6.2.3
+Commit: 150de12f4f4b94b39bec6d9133ad2e7019d2d3ef
+Commit Date: 2024-10-15 17:38:41 -0500
+Compiler: c++ (/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin)
+Compiler Version: 13.0.0.13000029
+Compiled Debug: NO
+Operating System: Apple OSX
+Compiled with OpenMP: YES
+]]></Value>
+      </MD>
+      <MD>
+         <Name><![CDATA[Provenance]]></Name>
+         <Value><![CDATA[/Applications/workbench/bin_macosxub/../macosxub_apps/wb_command.app/Contents/MacOS/wb_command -border-to-rois /Users/guilhermeblazquezfreches/Desktop/Thesis/Data/surfaces/chimpanzee/ChimpYerkes29.L.inflated.20k_fs_LR.surf.gii /Users/guilhermeblazquezfreches/Desktop/Thesis/Data/surfaces/chimpanzee/temp_l.border /Users/guilhermeblazquezfreches/Desktop/Thesis/Data/surfaces/chimpanzee/temp_l.func.gii]]></Value>
+      </MD>
+      <MD>
+         <Name><![CDATA[WorkingDirectory]]></Name>
+         <Value><![CDATA[/Users/guilhermeblazquezfreches]]></Value>
+      </MD>
+   </MetaData>
+   <LabelTable>
+      <Label Key="0" Red="1" Green="1" Blue="1" Alpha="0"><![CDATA[???]]></Label>
+   </LabelTable>
+<DataArray Intent="NIFTI_INTENT_NORMAL"
+           DataType="NIFTI_TYPE_FLOAT32"
+           ArrayIndexingOrder="RowMajorOrder"
+           Dimensionality="1"
+           Dim0="20252"
+           Encoding="GZipBase64Binary"
+           Endian="LittleEndian"
+           ExternalFileName=""
+           ExternalFileOffset="0">
+   <MetaData>
+      <MD>
+         <Name><![CDATA[Name]]></Name>
+         <Value><![CDATA[Temp_L]]></Value>
+      </MD>
+   </MetaData>
+   <Data>eJzt3eFKwzAUBeC9ma/mo/tjFGTgaprc5KT7PjggrLk5HWqn1Pl4nPn+eub4mDq7Pb+79QUAAAAAAAAAAAAAAAAAAAAAAACAOzjeK3LH9wX83T0tO9qlf3rP9M+F5H6p3RJ7JXVK+h6Y0CXhurCqw4pr44rr8szXAzNfg8x8zTNrr+R9UuZXza6YmzAzcVbVjFnrr669ct6ta1qOH3lcz+N/PQYAAAAAAAAAAAAAAPBprvy90Uq7dk21Q0cAAAAAAAAAAAAAAAAAALiz1v/x+OnxnImIiIiIiIjkJNWdzyHNDj3TOyb3S+2W+DWd1inpe19Kl4QeqzusvC6u2nvFvrP3nLnfrL1m7FO9R+X8qtkVc0fPHDlv1Kz/zDmb1TujZ/3VtVfWta6pOLb3mJbzGJXXcwQAAIB0Vb+fqP6Z+6zniPPv6fm6R6URHWdJ73dI7nZI7wUAAAAAAAAAAABQZYf7UQ93us+3uu/Z3JH3eL+b3bpnb7+ze9FTktZHRERERGSf/ACPXuiR</Data>
+</DataArray>
+</GIFTI>
