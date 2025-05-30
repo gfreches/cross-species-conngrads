@@ -108,55 +108,64 @@ def create_average_funcgii(list_of_subject_blueprint_files, hemisphere_label, ou
 
 
     # --- 3. Create and save the average .func.gii file ---
+        # Build each data array with a GiftiMetaData mapping
+        
+ # --- 3. Create and save the average .func.gii file ---
     try:
         num_maps = average_data.shape[0]
-
         gifti_data_arrays = []
+
+        # figure out the structure name once
+        if hemisphere_label.upper() == 'L':
+            structure_name = 'CortexLeft'
+        else:
+            structure_name = 'CortexRight'
+
+        # build each data array with proper GiftiMetaData
         for i in range(num_maps):
-            map_name = f"Tract_{i+1}"
-            meta = nib.gifti.GiftiMetaData()
-            try: # Handle different nibabel versions for GiftiMetaData.add_meta if necessary
-                meta.add_meta('Name', map_name)
-            except AttributeError: # Older nibabel versions might need this
-                meta.data.append(nib.gifti.GiftiNVPairs('Name', map_name))
+            dmeta = nib.gifti.GiftiMetaData()
+            dmeta['Name'] = f'Tract_{i+1}'
+            dmeta['AnatomicalStructurePrimary'] = structure_name
 
             darray = nib.gifti.GiftiDataArray(
                 data=average_data[i, :].astype(np.float32),
                 intent=nib.nifti1.intent_codes['NIFTI_INTENT_NONE'],
                 datatype=nib.nifti1.data_type_codes.code['NIFTI_TYPE_FLOAT32'],
-                meta=meta
+                meta=dmeta
             )
             gifti_data_arrays.append(darray)
 
-        gifti_image_meta = nib.gifti.GiftiMetaData()
-        description = f'Average {species_name} blueprint, Hemisphere {hemisphere_label}'
-        try: # Handle different nibabel versions for GiftiMetaData.add_meta if necessary
-            gifti_image_meta.add_meta('Description', description)
-        except AttributeError: # Older nibabel versions might need this
-            gifti_image_meta.data.append(nib.gifti.GiftiNVPairs('Description', description))
+        # build the image‐level metadata the same way
+        img_meta = nib.gifti.GiftiMetaData()
+        img_meta['Description'] = f'Average {species_name} blueprint, Hemisphere {hemisphere_label}'
+        img_meta['AnatomicalStructurePrimary'] = structure_name
 
+        # create the GiftiImage once, after the loop
         average_gii_img = nib.gifti.GiftiImage(
             darrays=gifti_data_arrays,
-            meta=gifti_image_meta
+            meta=img_meta
         )
 
-        if not os.path.exists(output_dir):
-            try:
-                os.makedirs(output_dir, exist_ok=True) # exist_ok=True is safer
-                print(f"Created output directory: {output_dir}")
-            except Exception as e_makedir:
-                print(f"Could not create output directory {output_dir}: {e_makedir}. Files may not be saved.")
-                return
+        # ensure output directory exists
+        os.makedirs(output_dir, exist_ok=True)
 
         output_filename = f"average_{species_name}_blueprint.{hemisphere_label}.func.gii"
         output_file_path = os.path.join(output_dir, output_filename)
 
+        # save—and optionally verify
         nib.save(average_gii_img, output_file_path)
         print(f"Successfully saved average {species_name} blueprint to: {output_file_path}")
 
     except Exception as e:
         print(f"Error creating or saving GiftiImage for {species_name}, hemisphere {hemisphere_label}: {e}")
+        # sanity‐check:
+        size = os.path.getsize(output_file_path)
+        print(f"Saved file size: {size} bytes")
+        nib.load(output_file_path)
+        print("Reloaded saved file successfully")
 
+    except Exception as e:
+        print(f"Error creating or saving GiftiImage for {species_name}, hemisphere {hemisphere_label}: {e}")
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
@@ -183,11 +192,6 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
 
-    # --- Prepare species-specific output directory ---
-    species_output_dir = os.path.join(args.output_base_dir, args.species_name)
-    if not os.path.exists(species_output_dir):
-        os.makedirs(species_output_dir, exist_ok=True)
-        print(f"Ensured output directory exists: {species_output_dir}")
 
     # --- Load subject list ---
     try:
@@ -245,12 +249,12 @@ if __name__ == "__main__":
             create_average_funcgii(
                 list_of_subject_blueprint_files=existing_blueprint_files,
                 hemisphere_label=hem,
-                output_dir=species_output_dir, # Use the species-specific output directory
+                output_dir=args.output_base_dir, 
                 species_name=args.species_name
             )
         else:
             print(f"No existing {args.species_name} blueprint files found for hemisphere {hem} using the provided patterns and subject list under '{args.data_base_dir}'.")
 
     print(f"\n--- {args.species_name} Blueprint Processing Complete ---")
-    print(f"Output for {args.species_name} saved in: {species_output_dir}")
+    print(f"Output for {args.species_name} saved in: {args.output_base_dir}")
     print("\nOverall processing complete for this species run.")
