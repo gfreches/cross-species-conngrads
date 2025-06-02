@@ -1,7 +1,7 @@
 import os
-import nibabel as nib
+import argparse
 import numpy as np
-import argparse 
+import nibabel as nib
 
 def create_average_funcgii(list_of_subject_blueprint_files, hemisphere_label, output_dir, species_name):
     """
@@ -48,80 +48,98 @@ def create_average_funcgii(list_of_subject_blueprint_files, hemisphere_label, ou
         print(f"No data loaded for {species_name}, hemisphere {hemisphere_label}. Skipping averaging.")
         return
 
-    if first_subject_img is None: # Should be caught by the previous check, but good for robustness
+    if first_subject_img is None:
         print(f"Could not load any template image for {species_name}, hemisphere {hemisphere_label}. Skipping.")
         return
 
-    print(f"Successfully loaded data for {len(all_subject_data_list)} subjects for {species_name} hemisphere {hemisphere_label}.")
+    print(
+        f"Successfully loaded data for {len(all_subject_data_list)} subjects for "
+        f"{species_name} hemisphere {hemisphere_label}."
+    )
 
     # --- 2. Stack and average the data ---
     if not all(arr.shape == all_subject_data_list[0].shape for arr in all_subject_data_list):
-        print(f"Error: Not all subject data arrays have the same shape for {species_name}, hemisphere {hemisphere_label}.")
+        print(
+            f"Error: Not all subject data arrays have the same shape for "
+            f"{species_name}, hemisphere {hemisphere_label}."
+        )
         return
 
     stacked_data = np.stack(all_subject_data_list, axis=0)
     average_data = np.mean(stacked_data, axis=0)
     print(f"Averaged data shape for {species_name}, hemisphere {hemisphere_label}: {average_data.shape}")
 
-    # Original sum_check based on the initial average
+    # --- Check and re-normalize ---
     original_sum_check = np.sum(average_data, axis=0)
-    print(f"Min sum of tracts per vertex BEFORE re-normalization ({species_name}, {hemisphere_label}): {np.min(original_sum_check):.6f}")
-    print(f"Max sum of tracts per vertex BEFORE re-normalization ({species_name}, {hemisphere_label}): {np.max(original_sum_check):.6f}")
-    print(f"Mean sum of tracts per vertex BEFORE re-normalization ({species_name}, {hemisphere_label}): {np.mean(original_sum_check):.6f}")
+    print(
+        f"Min sum of tracts per vertex BEFORE re-normalization "
+        f"({species_name}, {hemisphere_label}): {np.min(original_sum_check):.6f}"
+    )
+    print(
+        f"Max sum of tracts per vertex BEFORE re-normalization "
+        f"({species_name}, {hemisphere_label}): {np.max(original_sum_check):.6f}"
+    )
+    print(
+        f"Mean sum of tracts per vertex BEFORE re-normalization "
+        f"({species_name}, {hemisphere_label}): {np.mean(original_sum_check):.6f}"
+    )
 
     if not np.allclose(original_sum_check, 1.0, atol=1e-4):
-        print(f"Warning: Sum of tracts BEFORE re-normalization for {species_name}, hemisphere {hemisphere_label} is not consistently 1. Re-normalizing...")
+        print(
+            f"Warning: Sum of tracts BEFORE re-normalization for {species_name}, "
+            f"hemisphere {hemisphere_label} is not consistently 1. Re-normalizing..."
+        )
 
-    # --- Re-normalize average_data so each vertex sums to 1 ---
+    # Re-normalize average_data so each vertex sums to 1
     denominator = original_sum_check.copy()
-
-    # Prevent division by zero for vertices that had all zeros in the input
     zero_sum_mask = np.isclose(denominator, 0.0, atol=1e-9)
-    denominator[zero_sum_mask] = 1.0  # Avoid division by zero, result will be 0 if numerator was 0
+    denominator[zero_sum_mask] = 1.0  # Avoid division by zero
 
     renormalized_average_data = average_data / denominator[np.newaxis, :]
-    # Ensure that where original sum was zero, the output is also explicitly zero
-    # This handles cases where average_data might have had non-zero values due to float precision
-    # even if the original sum was zero (though less likely with a direct sum)
     if average_data.ndim == renormalized_average_data.ndim and average_data.shape[0] == renormalized_average_data.shape[0]:
-         for i in range(average_data.shape[0]):
+        for i in range(average_data.shape[0]):
             renormalized_average_data[i, zero_sum_mask] = 0.0
-    else: # Fallback if shapes are unexpected, though ideally they match
+    else:
         renormalized_average_data[:, zero_sum_mask] = 0.0
 
-
-    average_data = renormalized_average_data # Update average_data for saving
+    average_data = renormalized_average_data
 
     sum_check = np.sum(average_data, axis=0)
-    print(f"Min sum of tracts per vertex AFTER re-normalization ({species_name}, {hemisphere_label}): {np.min(sum_check):.6f}")
-    print(f"Max sum of tracts per vertex AFTER re-normalization ({species_name}, {hemisphere_label}): {np.max(sum_check):.6f}")
-    print(f"Mean sum of tracts per vertex AFTER re-normalization ({species_name}, {hemisphere_label}): {np.mean(sum_check):.6f}")
+    print(
+        f"Min sum of tracts per vertex AFTER re-normalization "
+        f"({species_name}, {hemisphere_label}): {np.min(sum_check):.6f}"
+    )
+    print(
+        f"Max sum of tracts per vertex AFTER re-normalization "
+        f"({species_name}, {hemisphere_label}): {np.max(sum_check):.6f}"
+    )
+    print(
+        f"Mean sum of tracts per vertex AFTER re-normalization "
+        f"({species_name}, {hemisphere_label}): {np.mean(sum_check):.6f}"
+    )
 
     non_zero_original_sums_mask = ~zero_sum_mask
     if np.any(non_zero_original_sums_mask):
         if not np.allclose(sum_check[non_zero_original_sums_mask], 1.0, atol=1e-6):
-            print(f"Warning: Sum of tracts AFTER re-normalization for {species_name}, hemisphere {hemisphere_label} is still not consistently 1 for some originally non-zero-sum vertices.")
-    # For vertices that were originally all zero, their sum should remain zero.
+            print(
+                f"Warning: Sum of tracts AFTER re-normalization for {species_name}, "
+                f"hemisphere {hemisphere_label} is still not consistently 1 for some originally non-zero-sum vertices."
+            )
+
     if np.any(zero_sum_mask):
         if not np.all(np.isclose(sum_check[zero_sum_mask], 0.0, atol=1e-9)):
-            print(f"Warning: Some vertices with original zero sums do not have a zero sum after re-normalization for {species_name}, hemisphere {hemisphere_label}.")
-
+            print(
+                f"Warning: Some vertices with original zero sums do not have a zero sum "
+                f"after re-normalization for {species_name}, hemisphere {hemisphere_label}."
+            )
 
     # --- 3. Create and save the average .func.gii file ---
-        # Build each data array with a GiftiMetaData mapping
-        
- # --- 3. Create and save the average .func.gii file ---
     try:
         num_maps = average_data.shape[0]
         gifti_data_arrays = []
 
-        # figure out the structure name once
-        if hemisphere_label.upper() == 'L':
-            structure_name = 'CortexLeft'
-        else:
-            structure_name = 'CortexRight'
+        structure_name = 'CortexLeft' if hemisphere_label.upper() == 'L' else 'CortexRight'
 
-        # build each data array with proper GiftiMetaData
         for i in range(num_maps):
             dmeta = nib.gifti.GiftiMetaData()
             dmeta['Name'] = f'Tract_{i+1}'
@@ -135,37 +153,31 @@ def create_average_funcgii(list_of_subject_blueprint_files, hemisphere_label, ou
             )
             gifti_data_arrays.append(darray)
 
-        # build the image‐level metadata the same way
         img_meta = nib.gifti.GiftiMetaData()
         img_meta['Description'] = f'Average {species_name} blueprint, Hemisphere {hemisphere_label}'
         img_meta['AnatomicalStructurePrimary'] = structure_name
 
-        # create the GiftiImage once, after the loop
         average_gii_img = nib.gifti.GiftiImage(
             darrays=gifti_data_arrays,
             meta=img_meta
         )
 
-        # ensure output directory exists
         os.makedirs(output_dir, exist_ok=True)
-
         output_filename = f"average_{species_name}_blueprint.{hemisphere_label}.func.gii"
         output_file_path = os.path.join(output_dir, output_filename)
 
-        # save—and optionally verify
         nib.save(average_gii_img, output_file_path)
         print(f"Successfully saved average {species_name} blueprint to: {output_file_path}")
 
     except Exception as e:
         print(f"Error creating or saving GiftiImage for {species_name}, hemisphere {hemisphere_label}: {e}")
-        # sanity‐check:
-        size = os.path.getsize(output_file_path)
-        print(f"Saved file size: {size} bytes")
-        nib.load(output_file_path)
-        print("Reloaded saved file successfully")
-
-    except Exception as e:
-        print(f"Error creating or saving GiftiImage for {species_name}, hemisphere {hemisphere_label}: {e}")
+        try:
+            size = os.path.getsize(output_file_path)
+            print(f"Saved file size: {size} bytes")
+            nib.load(output_file_path)
+            print("Reloaded saved file successfully")
+        except Exception:
+            print("Sanity check reload failed.")
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
@@ -192,8 +204,6 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
 
-
-    # --- Load subject list ---
     try:
         with open(args.subject_list_file, 'r') as f:
             subject_ids = [line.strip() for line in f if line.strip()]
@@ -208,7 +218,6 @@ if __name__ == "__main__":
         print(f"Error reading subject list file '{args.subject_list_file}': {e}")
         exit(1)
 
-    # --- Process each hemisphere ---
     hemisphere_list = [h.strip() for h in args.hemispheres.split(',')]
     print(f"\n--- Starting {args.species_name} Blueprint Processing for hemispheres: {', '.join(hemisphere_list)} ---")
 
@@ -217,32 +226,27 @@ if __name__ == "__main__":
         blueprint_files_for_hemisphere = []
         for subject_id in subject_ids:
             try:
-                # Construct the path to the subject's specific data directory
                 subject_specific_dir_fragment = args.subject_dir_pattern.format(subject_id=subject_id, hemisphere=hem)
-                # Construct the blueprint filename, potentially with hemisphere
                 current_blueprint_filename = args.blueprint_filename.format(hemisphere=hem)
-
                 file_path = os.path.join(args.data_base_dir, subject_specific_dir_fragment, current_blueprint_filename)
                 blueprint_files_for_hemisphere.append(file_path)
             except KeyError as e:
                 print(f"Error: Placeholder {e} in --subject_dir_pattern or --blueprint_filename is not being filled correctly. "
                       f"Ensure your patterns match available placeholders ({{subject_id}}, {{hemisphere}}).")
                 print(f"Skipping subject {subject_id} for hemisphere {hem}.")
-                continue # Skip this subject for this hemisphere if path construction fails
+                continue
 
         existing_blueprint_files = [fp for fp in blueprint_files_for_hemisphere if os.path.exists(fp)]
 
-        # Print which files were expected vs. found for clarity, especially if some are missing
         if len(existing_blueprint_files) < len(blueprint_files_for_hemisphere):
             print(f"Expected {len(blueprint_files_for_hemisphere)} files for hemisphere {hem}, found {len(existing_blueprint_files)}.")
             missing_files = set(blueprint_files_for_hemisphere) - set(existing_blueprint_files)
             if missing_files:
                 print("Missing files:")
-                for mf in sorted(list(missing_files))[:5]: # Print first 5 missing
-                     print(f"  {mf}")
+                for mf in sorted(list(missing_files))[:5]:
+                    print(f"  {mf}")
                 if len(missing_files) > 5:
                     print(f"  ...and {len(missing_files) - 5} more.")
-
 
         if existing_blueprint_files:
             print(f"Found {len(existing_blueprint_files)} existing blueprint files for {args.species_name}, hemisphere {hem}.")
