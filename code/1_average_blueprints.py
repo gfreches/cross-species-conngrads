@@ -221,6 +221,9 @@ if __name__ == "__main__":
     hemisphere_list = [h.strip() for h in args.hemispheres.split(',')]
     print(f"\n--- Starting {args.species_name} Blueprint Processing for hemispheres: {', '.join(hemisphere_list)} ---")
 
+    # MODIFICATION: Define the species-specific output directory path
+    species_output_dir = os.path.join(args.output_base_dir, args.species_name)
+
     for hem in hemisphere_list:
         print(f"\nProcessing Hemisphere: {hem}")
         blueprint_files_for_hemisphere = []
@@ -243,22 +246,23 @@ if __name__ == "__main__":
             missing_files = set(blueprint_files_for_hemisphere) - set(existing_blueprint_files)
             if missing_files:
                 print("Missing files:")
-                for mf in sorted(list(missing_files))[:5]:
-                    print(f"  {mf}")
-                if len(missing_files) > 5:
-                    print(f"  ...and {len(missing_files) - 5} more.")
+                for mf in sorted(list(missing_files))[:5]: #
+                    print(f"  {mf}") #
+                if len(missing_files) > 5: #
+                    print(f"  ...and {len(missing_files) - 5} more.") #
 
         if existing_blueprint_files:
             print(f"Found {len(existing_blueprint_files)} existing blueprint files for {args.species_name}, hemisphere {hem}.")
             create_average_funcgii(
                 list_of_subject_blueprint_files=existing_blueprint_files,
                 hemisphere_label=hem,
-                output_dir=args.output_base_dir, 
+                output_dir=species_output_dir, # MODIFICATION: Pass the species-specific output directory
                 species_name=args.species_name
             )
         else:
             print(f"No existing {args.species_name} blueprint files found for hemisphere {hem} using the provided patterns and subject list under '{args.data_base_dir}'.")
 
     print(f"\n--- {args.species_name} Blueprint Processing Complete ---")
-    print(f"Output for {args.species_name} saved in: {args.output_base_dir}")
+    # MODIFICATION: Update the final output message to reflect the actual location
+    print(f"Output for {args.species_name} saved in: {species_output_dir}")
     print("\nOverall processing complete for this species run.")
