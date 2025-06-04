@@ -1,6 +1,7 @@
 # Cross-Species Connectivity Gradient Analysis Pipeline
 
 This repository contains a suite of Python scripts designed to process, analyze, and visualize brain connectivity blueprints, with a focus on computing and comparing connectivity gradients across different primate species (e.g., humans and chimpanzees). The pipeline includes steps for averaging blueprints, masking, individual species gradient computation, data downsampling via k-means, cross-species gradient computation, and interactive visualization of the results.
+You can also find an online version of the 2-D interactive plot of this work in https://gfreches.pythonanywhere.com/
 
 ## Table of Contents
 1.  [Prerequisites](#prerequisites)
