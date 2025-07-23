@@ -1,0 +1,9 @@
+dash
+matplotlib
+nibabel
+numba
+numpy
+pandas
+plotly
+scikit-learn
+scipy
