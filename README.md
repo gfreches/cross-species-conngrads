@@ -151,27 +151,30 @@ This pipeline processes connectivity blueprints through several stages:
 
 ---
 ### Script 3: Compute Individual Species Gradients
-* **Name**: `3_individual_species_gradients.py` (or `3_compute_gradients.py`)
-* **Function**: Computes connectivity gradients within the masked region for each species/hemisphere separately using spectral embedding.
-* **Example Command**:
+* **Name**: `3_individual_species_gradients.py`
+* **Function**: Computes connectivity gradients within the masked region for each species/hemisphere separately using spectral embedding. It automatically locates the necessary inputs from Script 2 and saves outputs to the correct directory based on the project's standard structure.
+* **Example Usage**:
+
+    **Basic command (using all default paths):**
+    ```bash
+    python code/3_individual_species_gradients.py --species_list "human,chimpanzee"
+    ```
+
+    **Advanced command (overriding the output directory):**
     ```bash
     python code/3_individual_species_gradients.py \
-        --input_masked_blueprint_dir "results/2_masked_average_blueprints/" \
-        --input_mask_dir "data/masks/" \
-        --output_dir "results/3_individual_species_gradients/" \
-        --species_list "human,chimpanzee" \
-        --hemispheres "L,R" \
-        --masked_blueprint_pattern "average_{species_name}_blueprint.{hemisphere}_temporal_lobe_masked.func.gii" \
-        --mask_pattern "{species_name}_{hemisphere}.func.gii" \
-        --max_gradients 10 
+	--species_list "human" \
+	--max_gradients 15"
     ```
+
 * **Key Arguments**:
-    * `--input_masked_blueprint_dir`: Output directory from Script 2.
-    * `--input_mask_dir`: Directory with mask files (used to define TL vertices).
-    * `--output_dir`: Base directory for saving gradients, plots, and intermediates.
-    * `--species_list`: Comma-separated species to process.
-    * `--masked_blueprint_pattern`: Filename pattern for inputs from Script 2.
-    * `--mask_pattern`: Filename pattern for mask files.
+    * `--species_list`: **(Required)** Comma-separated list of species to process (e.g., `"human,chimpanzee"`).
+    * `--project_root`: **(Optional)** Path to the project's root directory. Defaults to current directory (`.`).
+    * `--hemispheres`: **(Optional)** Comma-separated list of hemispheres to process. Defaults to `"L,R"`.
+    * `--max_gradients`: **(Optional)** Maximum number of gradients (embedding dimensions) to compute. Default is `10`.
+    * `--max_k_knn`: **(Optional)** Maximum value of *k* to test when searching for a connected k-NN graph. Default is `150`.
+    * `--default_k_knn`: **(Optional)** Fallback *k* used if no connected graph is found during adaptive search. Default is `20`.
+    * `--min_gain_dim_select`: **(Optional)** Minimum gain in reconstruction correlation required to select an additional gradient. Default is `0.1`.
 
 ### Script 4: Visualize Individual/Combined Gradients (Static Plots)
 * **Name**: `4_visualize_gradients.py` (or `4_individual_species_gradients_analysis.py`)

@@ -524,25 +524,17 @@ if __name__ == "__main__":
         description="Compute connectivity gradients from masked blueprints using Spectral Embedding.",
         formatter_class=argparse.ArgumentDefaultsHelpFormatter
     )
-    parser.add_argument('--input_masked_blueprint_dir', type=str, required=True,
-                        help="Base directory containing species subfolders with masked blueprints (output of Script 2).")
-    parser.add_argument('--input_mask_dir', type=str, required=True,
-                        help="Base directory containing temporal lobe mask .func.gii files. Assumes species subfolders if mask_pattern doesn't include relative path.")
-    parser.add_argument('--output_dir', type=str, required=True,
-                        help="Base directory where all outputs (plots, .npy, gradient .func.gii) will be saved.")
+    # Required arguments
     parser.add_argument('--species_list', type=str, required=True,
                         help='Comma-separated list of species names to process (e.g., "human,chimpanzee").')
-    parser.add_argument('--hemispheres', type=str, default="L,R",
-                        help='Comma-separated list of hemisphere labels to process (e.g., "L,R").')
     
-    # Filename patterns (must match outputs of Script 2 and original mask names)
-    parser.add_argument('--masked_blueprint_pattern', type=str,
-                        default="average_{species_name}_blueprint.{hemisphere}_temporal_lobe_masked.func.gii",
-                        help='Filename pattern for masked blueprints from Script 2. Placeholders: {species_name}, {hemisphere}.')
-    parser.add_argument('--mask_pattern', type=str, required=True,
-                        help='Filename pattern for temporal lobe masks. Placeholders: {species_name}, {hemisphere}. Example: "{species_name}_temporal_lobe_mask.{hemisphere}.func.gii"')
-
-    # Parameters for the LLE/Embedding process
+    # Optional arguments with sensible defaults
+    parser.add_argument('--project_root', type=str, default='.',
+                        help='Path to the project root directory containing data/ and results/.')
+    parser.add_argument('--hemispheres', type=str, default="L,R",
+                        help='Comma-separated list of hemisphere labels to process.')
+    
+    # Technical parameters for the LLE/Embedding process (for advanced users)
     parser.add_argument('--max_gradients', type=int, default=MAX_GRADIENTS_TO_TEST_DEFAULT,
                         help="Maximum number of gradients to compute and test.")
     parser.add_argument('--max_k_knn', type=int, default=MAX_K_SEARCH_FOR_KNN_DEFAULT,
@@ -557,100 +549,78 @@ if __name__ == "__main__":
     species_to_process = [s.strip() for s in args.species_list.split(',')]
     hemispheres_to_process = [h.strip() for h in args.hemispheres.split(',')]
     
-    if not os.path.exists(args.output_dir):
-        os.makedirs(args.output_dir, exist_ok=True)
+    # --- NEW: Define fixed paths and patterns inside the script ---
+    input_masked_bp_base_dir = os.path.join(args.project_root, 'results', '2_masked_average_blueprints')
+    input_mask_base_dir = os.path.join(args.project_root, 'data', 'masks')
+    output_base_dir = os.path.join(args.project_root, 'results', '3_individual_species_gradients')
+    
+    os.makedirs(output_base_dir, exist_ok=True)
 
     all_results_summary = {}
 
     for species in species_to_process:
-        species_output_base = os.path.join(args.output_dir, species)
-        os.makedirs(species_output_base, exist_ok=True)
+        # Define species-specific directories
+        species_output_dir = os.path.join(output_base_dir, species)
+        os.makedirs(species_output_dir, exist_ok=True)
             
+        species_masked_bp_input_dir = os.path.join(input_masked_bp_base_dir, species)
+        species_mask_files_dir = os.path.join(input_mask_base_dir, species)
+        
+        # Define filename patterns for this species
+        masked_blueprint_pattern = f"average_{species}_blueprint.{{hemisphere}}_temporal_lobe_masked.func.gii"
+        mask_pattern = f"{species}_{{hemisphere}}.func.gii"
+
         all_results_summary[species] = {}
         
-        # Path to this species' masked blueprints (output from Script 2)
-        species_masked_bp_input_dir = os.path.join(args.input_masked_blueprint_dir, species)
-        # Path to this species' original masks. Assumes masks might be directly under input_mask_dir
-        # OR in species subfolders. The pattern {species_name} in mask_pattern will resolve this.
-        # If mask_pattern is just "mask_{hemisphere}.func.gii", then species_mask_input_dir should be used.
-        # If mask_pattern is "{species_name}_mask_{hemisphere}.func.gii", then args.input_mask_dir is fine.
-        # For consistency with current structure, assuming masks are in a species sub-directory of args.input_mask_dir
-        species_mask_files_dir = os.path.join(args.input_mask_dir, species)
-
-
         # --- Separate Hemisphere Analysis ---
         print(f"\n\n=== Running SEPARATE Hemisphere Analysis for {species.capitalize()} ===")
         for hem in hemispheres_to_process:
-            masked_avg_bp_filename = args.masked_blueprint_pattern.format(species_name=species, hemisphere=hem)
-            masked_avg_bp_path = os.path.join(species_masked_bp_input_dir, masked_avg_bp_filename)
+            masked_avg_bp_path = os.path.join(species_masked_bp_input_dir, masked_blueprint_pattern.format(hemisphere=hem))
+            mask_path = os.path.join(species_mask_files_dir, mask_pattern.format(hemisphere=hem))
             
-            mask_filename = args.mask_pattern.format(species_name=species, hemisphere=hem)
-            mask_path = os.path.join(species_mask_files_dir, mask_filename) # Use species_mask_files_dir
-            
-            if not os.path.exists(masked_avg_bp_path):
-                print(f"WARNING: Masked blueprint not found, skipping {species} {hem} separate: {masked_avg_bp_path}")
-                continue
-            if not os.path.exists(mask_path):
-                print(f"WARNING: Mask file not found, skipping {species} {hem} separate: {mask_path}")
+            if not os.path.exists(masked_avg_bp_path) or not os.path.exists(mask_path):
+                print(f"WARNING: Input file not found, skipping {species} {hem} separate.")
                 continue
 
             dims, scores, suggested_dim, eigenvalues = run_single_hemisphere_lle_pipeline( 
                 species_name=species, hemisphere_label=hem,
                 masked_avg_blueprint_gii_path=masked_avg_bp_path, 
                 temporal_mask_gii_path=mask_path,
-                species_output_dir=species_output_base,
+                species_output_dir=species_output_dir,
                 max_dims_to_test=args.max_gradients,
                 min_gain_threshold=args.min_gain_dim_select,
                 max_k_search=args.max_k_knn,
                 default_k_fallback=args.default_k_knn
             )
+            # (Reporting logic remains the same)
             all_results_summary[species][hem] = {
                 'dimensions': dims, 'scores': scores, 
                 'suggested_dim_penalized': suggested_dim, 'eigenvalues': eigenvalues 
             }
-            if scores and dims: 
-                print(f"Results for {species} {hem} (Separate - S_full vs S_embed):")
-                for d_idx, d_val in enumerate(dims):
-                    if d_idx < len(scores): 
-                        score_val = scores[d_idx]
-                        eig_val_str = f", Eigenvalue: {eigenvalues[d_idx]:.4e}" if eigenvalues is not None and d_idx < len(eigenvalues) else ""
-                        print(f"    Dim: {d_val}, Score: {score_val:.4f}{eig_val_str}" if not np.isnan(score_val) else f"    Dim: {d_val}, Score: NaN{eig_val_str}")
-                    else: print(f"    Dim: {d_val}, Score: (missing)")
-                if suggested_dim is not None:
-                    print(f"    Suggested optimal dimensions (penalized gain) for {species} {hem} (Separate): {suggested_dim}")
 
         # --- Combined Hemisphere Analysis ---
         print(f"\n\n=== Running COMBINED Hemisphere Analysis for {species.capitalize()} ===")
-        bp_L_path = os.path.join(species_masked_bp_input_dir, args.masked_blueprint_pattern.format(species_name=species, hemisphere='L'))
-        bp_R_path = os.path.join(species_masked_bp_input_dir, args.masked_blueprint_pattern.format(species_name=species, hemisphere='R'))
-        mask_L_path = os.path.join(species_mask_files_dir, args.mask_pattern.format(species_name=species, hemisphere='L')) # Use species_mask_files_dir
-        mask_R_path = os.path.join(species_mask_files_dir, args.mask_pattern.format(species_name=species, hemisphere='R')) # Use species_mask_files_dir
+        bp_L_path = os.path.join(species_masked_bp_input_dir, masked_blueprint_pattern.format(hemisphere='L'))
+        bp_R_path = os.path.join(species_masked_bp_input_dir, masked_blueprint_pattern.format(hemisphere='R'))
+        mask_L_path = os.path.join(species_mask_files_dir, mask_pattern.format(hemisphere='L'))
+        mask_R_path = os.path.join(species_mask_files_dir, mask_pattern.format(hemisphere='R'))
 
         if not (os.path.exists(bp_L_path) and os.path.exists(bp_R_path) and \
                 os.path.exists(mask_L_path) and os.path.exists(mask_R_path)):
-            print(f"Skipping combined analysis for {species} due to missing input files for L or R hemisphere.")
+            print(f"Skipping combined analysis for {species} due to missing input files.")
         else:
             dims_c, scores_c, suggested_dim_c, eigvals_c = run_combined_hemisphere_lle_pipeline(
                 species_name=species,
                 masked_avg_blueprint_gii_path_L=bp_L_path, masked_avg_blueprint_gii_path_R=bp_R_path,
                 temporal_mask_gii_path_L=mask_L_path, temporal_mask_gii_path_R=mask_R_path,
-                species_output_dir=species_output_base,
+                species_output_dir=species_output_dir,
                 max_dims_to_test=args.max_gradients, min_gain_threshold=args.min_gain_dim_select,
                 max_k_search=args.max_k_knn, default_k_fallback=args.default_k_knn
             )
+            # (Reporting logic remains the same)
             all_results_summary[species]['COMBINED'] = {
                 'dimensions': dims_c, 'scores': scores_c, 
                 'suggested_dim_penalized': suggested_dim_c, 'eigenvalues': eigvals_c 
             }
-            if scores_c and dims_c: 
-                print(f"Results for {species} COMBINED (S_full vs S_embed):")
-                for d_idx, d_val in enumerate(dims_c):
-                    if d_idx < len(scores_c): 
-                        score_val = scores_c[d_idx]
-                        eig_val_str = f", Eigenvalue: {eigvals_c[d_idx]:.4e}" if eigvals_c is not None and d_idx < len(eigvals_c) else ""
-                        print(f"    Dim: {d_val}, Score: {score_val:.4f}{eig_val_str}" if not np.isnan(score_val) else f"    Dim: {d_val}, Score: NaN{eig_val_str}")
-                    else: print(f"    Dim: {d_val}, Score: (missing)")
-                if suggested_dim_c is not None:
-                    print(f"    Suggested optimal dimensions (penalized gain) for {species} COMBINED: {suggested_dim_c}")
                     
     print("\n--- All LLE Dimensionality Evaluation and Gradient Saving Complete ---")
