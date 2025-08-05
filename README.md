@@ -15,6 +15,7 @@ You can also find an online version of the 2-D interactive plot of this work in 
     * [Script 5: Downsample Blueprints via K-Means](#script-5-downsample-blueprints-via-k-means)
     * [Script 6: Compute Cross-Species Gradients](#script-6-compute-cross-species-gradients)
     * [Script 7: Interactive Gradient Visualization (Dash App)](#script-7-interactive-gradient-visualization-dash-app)
+    * [Script 8: Plot Cross-Species Gradients (Static Scatter Plots)](#script-8-plot-cross-species-gradients-static-scatter-plots)
 5.  [Outputs](#outputs)
 
 ## Prerequisites
@@ -243,6 +244,21 @@ This pipeline processes connectivity blueprints through several stages:
     * `--n_tracts`, `--tract_names`: Configuration for spider plots.
     * `--host`, `--port`, `--debug`: For running the Dash application.
 * **Accessing the App**: After running, open your web browser and go to `http://<host>:<port>/` (e.g., `http://127.0.0.1:8051/`).
+
+### Script 8: Plot Cross-Species Gradients (Static Scatter Plots)
+* **Name**: `8_plot_cross_species_gradients.py`
+* **Function**: Generates static 2D scatter plots from the cross-species gradient data (`.npz` file) created by Script 6. This is useful for creating publication-quality figures of specific gradient comparisons (e.g., G1 vs G2, G1 vs G3).
+* **Example Command**:
+    ```bash
+    python code/8_plot_cross_species_gradients.py \
+        --npz_file "results/6_cross_species_gradients/intermediates/human_chimpanzee_CrossSpecies_kRef_chimpanzee/cross_species_embedding_data_human_chimpanzee_CrossSpecies_kRef_chimpanzee.npz" \
+        --output_dir "results/8_static_cross_species_plots/" \
+        --gradient_pairs "0_1,0_2"
+    ```
+* **Key Arguments**:
+    * `--npz_file`: Path to the `.npz` output file from Script 6 containing the cross-species embedding data.
+    * `--output_dir`: Directory where the output `.png` scatter plots will be saved.
+    * `--gradient_pairs`: Comma-separated list of gradient pairs to plot. The indices are 0-based. For example, `"0_1"` plots Gradient 1 vs Gradient 2. `"0_1,0_2,1_2"` would create three separate plots.
 
 ## Outputs
 
