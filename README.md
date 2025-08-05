@@ -143,11 +143,11 @@ This pipeline processes connectivity blueprints through several stages:
 
 * **Key Arguments**:
     * `--species_name`: **(Required)** The name of the species (e.g., "human").
-    * `--input_avg_blueprint_basedir`: Base directory for averaged blueprints. The script will look for a species subfolder inside this path. (Default: `results/1_average_blueprints`)
-    * `--mask_files_basedir`: Base directory for mask files. The script will look for a species subfolder inside this path. (Default: `data/masks`)
-    * `--output_masked_blueprint_basedir`: Base directory where masked blueprints will be saved. A species subfolder will be created here. (Default: `results/2_masked_average_blueprints`)
-    * `--hemispheres`: Comma-separated hemispheres to process. (Default: `"L,R"`)
-    * `--avg_blueprint_name_pattern`, `--mask_name_pattern`, `--output_masked_name_pattern`: Optional arguments to specify custom filename patterns if they differ from the defaults.
+    * `--input_avg_blueprint_basedir`: **(Optional)** Base directory for averaged blueprints. The script will look for a species subfolder inside this path. (Default: `results/1_average_blueprints`)
+    * `--mask_files_basedir`: **(Optional)** Base directory for mask files. The script will look for a species subfolder inside this path. (Default: `data/masks`)
+    * `--output_masked_blueprint_basedir`: **(Optional)** Base directory where masked blueprints will be saved. A species subfolder will be created here. (Default: `results/2_masked_average_blueprints`)
+    * `--hemispheres`: **(Optional)** Comma-separated hemispheres to process. (Default: `"L,R"`)
+    * `--avg_blueprint_name_pattern`, `--mask_name_pattern`, `--output_masked_name_pattern`: **(Optional)** Optional arguments to specify custom filename patterns if they differ from the defaults.
 
 ---
 ### Script 3: Compute Individual Species Gradients
