@@ -17,6 +17,7 @@ You can also find an online version of the 2-D interactive plot of this work in 
     * [Script 7: Interactive Gradient Visualization (Dash App)](#script-7-interactive-gradient-visualization-dash-app)
     * [Script 8: Plot Cross-Species Gradients (Static Scatter Plots)](#script-8-plot-cross-species-gradients-static-scatter-plots)
     * [Script 9: Plot Consolidated Spider Plots](#script-9-plot-consolidated-spider-plots)
+
 5.  [Outputs](#outputs)
 
 ## Prerequisites
@@ -28,8 +29,8 @@ You can also find an online version of the 2-D interactive plot of this work in 
 
 1.  **Clone the repository (if applicable):**
     ```bash
-    git clone [https://github.com/your_username/your_repository_name.git](https://github.com/your_username/your_repository_name.git)
-    cd your_repository_name
+    git clone https://github.com/gfreches/cross-species-conngrads.git
+    cd cross-species-conngrads
     ```
 
 2.  **Create a virtual environment (recommended):**
@@ -78,6 +79,7 @@ your_project_root/
 │   ├── 8_static_cross_species_plots/ # Output of Script 8
 │   └── 9_consolidated_spider_plots/  # Output of Script 9
 └── code/                        # Where your Python scripts (1-9) reside
+
 ├── 1_average_blueprints.py
 ├── 2_mask_blueprints.py
 ├── 3_individual_species_gradients.py
@@ -87,6 +89,7 @@ your_project_root/
 ├── 7_interactive_analyse_cross_species.py
 ├── 8_plot_cross_species_gradients.py
 └── 9_plot_consolidated_spider_plots.py
+
 ```
 
 *Adjust paths in the script commands according to your actual structure.*
