@@ -160,7 +160,7 @@ This pipeline processes connectivity blueprints through several stages:
     python code/3_individual_species_gradients.py --species_list "human,chimpanzee"
     ```
 
-    **Advanced command (overriding the output directory):**
+    **Advanced command (overriding the number of gradients output):**
     ```bash
     python code/3_individual_species_gradients.py \
 	--species_list "human" \
@@ -169,12 +169,12 @@ This pipeline processes connectivity blueprints through several stages:
 
 * **Key Arguments**:
     * `--species_list`: **(Required)** Comma-separated list of species to process (e.g., `"human,chimpanzee"`).
-    * `--project_root`: **(Optional)** Path to the project's root directory. Defaults to current directory (`.`).
-    * `--hemispheres`: **(Optional)** Comma-separated list of hemispheres to process. Defaults to `"L,R"`.
-    * `--max_gradients`: **(Optional)** Maximum number of gradients (embedding dimensions) to compute. Default is `10`.
-    * `--max_k_knn`: **(Optional)** Maximum value of *k* to test when searching for a connected k-NN graph. Default is `150`.
-    * `--default_k_knn`: **(Optional)** Fallback *k* used if no connected graph is found during adaptive search. Default is `20`.
-    * `--min_gain_dim_select`: **(Optional)** Minimum gain in reconstruction correlation required to select an additional gradient. Default is `0.1`.
+    * `--project_root`: **(Optional)** Path to the project's root directory. (Default: current folder -  `.`)
+    * `--hemispheres`: **(Optional)** Comma-separated list of hemispheres to process. (Default:`"L,R"`)
+    * `--max_gradients`: **(Optional)** Maximum number of gradients (embedding dimensions) to compute. (Default: `10`)
+    * `--max_k_knn`: **(Optional)** Maximum value of *k* to test when searching for a connected k-NN graph. (Default: `150`)
+    * `--default_k_knn`: **(Optional)** Fallback *k* used if no connected graph is found during adaptive search. (Default: is `20`)
+    * `--min_gain_dim_select`: **(Optional)** Minimum gain in reconstruction correlation required to select an additional gradient. (Default: `0.1`)
 
 ### Script 4: Visualize Individual/Combined Gradients (Static Plots)
 * **Name**: `4_visualize_gradients.py` (or `4_individual_species_gradients_analysis.py`)
