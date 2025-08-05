@@ -74,14 +74,16 @@ your_project_root/
 │       │   └── <run_identifier>/
 │       └── <species_name>/         # Remapped cross-species gradients per species
 │           └── cross_species_gradients_remapped/
-└── code/                        # Where your Python scripts (1-7) reside
+│   └── 8_static_cross_species_plots/ # Output of Script 8
+└── code/                        # Where your Python scripts (1-8) reside
 ├── 1_average_blueprints.py
 ├── 2_mask_blueprints.py
 ├── 3_individual_species_gradients.py
 ├── 4_visualize_gradients.py
 ├── 5_downsample_blueprints.py
 ├── 6_cross_species_gradients.py
-└── 7_interactive_analyse_cross_species.py
+├── 7_interactive_analyse_cross_species.py
+└── 8_plot_cross_species_gradients.py
 ```
 
 *Adjust paths in the script commands according to your actual structure.*
@@ -274,3 +276,4 @@ The pipeline generates several types of outputs in the specified `results` subdi
     * An `.npz` archive containing the raw joint embedding, segment information, and eigenvalues.
     * Intermediate `.npy` files and dimensionality evaluation plots (Script 6).
 * **Interactive Visualization**: A web application (Script 7).
+* **Cross-Species Scatter Plots**: Static `.png` files showing relationships between different cross-species gradients (Script 8).
