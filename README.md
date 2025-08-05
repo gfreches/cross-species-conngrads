@@ -16,6 +16,8 @@ You can also find an online version of the 2-D interactive plot of this work in 
     * [Script 6: Compute Cross-Species Gradients](#script-6-compute-cross-species-gradients)
     * [Script 7: Interactive Gradient Visualization (Dash App)](#script-7-interactive-gradient-visualization-dash-app)
     * [Script 8: Plot Cross-Species Gradients (Static Scatter Plots)](#script-8-plot-cross-species-gradients-static-scatter-plots)
+    * [Script 9: Plot Consolidated Spider Plots](#script-9-plot-consolidated-spider-plots)
+
 5.  [Outputs](#outputs)
 
 ## Prerequisites
@@ -74,8 +76,10 @@ your_project_root/
 │       │   └── <run_identifier>/
 │       └── <species_name>/         # Remapped cross-species gradients per species
 │           └── cross_species_gradients_remapped/
-│   └── 8_static_cross_species_plots/ # Output of Script 8
-└── code/                        # Where your Python scripts (1-8) reside
+│   ├── 8_static_cross_species_plots/ # Output of Script 8
+│   └── 9_consolidated_spider_plots/  # Output of Script 9
+└── code/                        # Where your Python scripts (1-9) reside
+
 ├── 1_average_blueprints.py
 ├── 2_mask_blueprints.py
 ├── 3_individual_species_gradients.py
@@ -83,7 +87,9 @@ your_project_root/
 ├── 5_downsample_blueprints.py
 ├── 6_cross_species_gradients.py
 ├── 7_interactive_analyse_cross_species.py
-└── 8_plot_cross_species_gradients.py
+├── 8_plot_cross_species_gradients.py
+└── 9_plot_consolidated_spider_plots.py
+
 ```
 
 *Adjust paths in the script commands according to your actual structure.*
@@ -262,6 +268,29 @@ This pipeline processes connectivity blueprints through several stages:
     * `--output_dir`: Directory where the output `.png` scatter plots will be saved.
     * `--gradient_pairs`: Comma-separated list of gradient pairs to plot. The indices are 0-based. For example, `"0_1"` plots Gradient 1 vs Gradient 2. `"0_1,0_2,1_2"` would create three separate plots.
 
+### Script 9: Plot Consolidated Spider Plots
+* **Name**: `9_plot_consolidated_spider_plots.py`
+* **Function**: For each specified cross-species gradient, this script identifies the vertices (or centroids) that show the minimum and maximum expression of that gradient for each species/hemisphere. It then generates two consolidated spider plots per gradient: one for the max-expressing vertices and one for the min-expressing vertices, overlaying the blueprint profiles from all four species/hemisphere combinations.
+* **Example Command**:
+    ```bash
+    python code/9_plot_consolidated_spider_plots.py \
+        --npz_file "results/6_cross_species_gradients/intermediates/human_chimpanzee_CrossSpecies_kRef_chimpanzee/cross_species_embedding_data_human_chimpanzee_CrossSpecies_kRef_chimpanzee.npz" \
+        --masked_blueprint_dir "results/2_masked_average_blueprints/" \
+        --downsampled_data_dir "results/5_downsampled_blueprints/" \
+        --mask_base_dir "data/masks/" \
+        --output_dir "results/9_consolidated_spider_plots/" \
+        --gradients "0,1" \
+        --target_k_species "chimpanzee"
+    ```
+* **Key Arguments**:
+    * `--npz_file`: Path to the cross-species `.npz` file from script 6.
+    * `--masked_blueprint_dir`: Directory for masked average blueprints (script 2 output), used to get the blueprint profiles for plotting.
+    * `--downsampled_data_dir`: Directory for downsampled data (script 5 output), needed to map centroids back to original vertices for non-target species.
+    * `--mask_base_dir`: Directory for all species' masks, used to identify original temporal lobe vertices.
+    * `--output_dir`: Directory to save the output spider plot images.
+    * `--gradients`: Comma-separated list of 0-indexed gradients to analyze.
+    * `--target_k_species`: The species that was used as the reference for k-means downsampling (e.g., 'chimpanzee'). This is crucial for correctly locating data for other species.
+
 ## Outputs
 
 The pipeline generates several types of outputs in the specified `results` subdirectories:
@@ -277,3 +306,4 @@ The pipeline generates several types of outputs in the specified `results` subdi
     * Intermediate `.npy` files and dimensionality evaluation plots (Script 6).
 * **Interactive Visualization**: A web application (Script 7).
 * **Cross-Species Scatter Plots**: Static `.png` files showing relationships between different cross-species gradients (Script 8).
+* **Consolidated Spider Plots**: `.png` files showing the blueprint profiles of the vertices that express the minimum and maximum values for each cross-species gradient (Script 9).
