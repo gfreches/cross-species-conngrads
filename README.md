@@ -18,6 +18,7 @@ You can also find an online version of the 2-D interactive plot of this work in 
     * [Script 8: Plot Cross-Species Gradients (Static Scatter Plots)](#script-8-plot-cross-species-gradients-static-scatter-plots)
     * [Script 9: Plot Consolidated Spider Plots](#script-9-plot-consolidated-spider-plots)
     * [Script 10: Run Permutation Analysis](#script-10-run-permutation-analysis)
+
 5.  [Outputs](#outputs)
 
 ## Prerequisites
@@ -29,8 +30,8 @@ You can also find an online version of the 2-D interactive plot of this work in 
 
 1.  **Clone the repository (if applicable):**
     ```bash
-    git clone [https://github.com/your_username/your_repository_name.git](https://github.com/your_username/your_repository_name.git)
-    cd your_repository_name
+    git clone https://github.com/gfreches/cross-species-conngrads.git
+    cd cross-species-conngrads
     ```
 
 2.  **Create a virtual environment (recommended):**
@@ -90,6 +91,7 @@ your_project_root/
 ├── 8_plot_cross_species_gradients.py
 ├── 9_plot_consolidated_spider_plots.py
 └── 10_run_permutation_analysis.py
+
 ```
 
 *Adjust paths in the script commands according to your actual structure.*
