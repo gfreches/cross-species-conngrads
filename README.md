@@ -75,7 +75,7 @@ your_project_root/
 │       │   └── <run_identifier>/
 │       └── <species_name>/         # Remapped cross-species gradients per species
 │           └── cross_species_gradients_remapped/
-│   └── 8_static_cross_species_plots/ # Output of Script 8
+│   ├── 8_static_cross_species_plots/ # Output of Script 8
 │   └── 9_consolidated_spider_plots/  # Output of Script 9
 └── code/                        # Where your Python scripts (1-9) reside
 ├── 1_average_blueprints.py
