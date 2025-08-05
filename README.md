@@ -122,7 +122,6 @@ This pipeline processes connectivity blueprints through several stages:
     * `--subject_dir_pattern`: Pattern for subject-specific data directories.
     * `--blueprint_filename`: Filename of blueprint files within subject directories.
 
----
 ### Script 2: Mask Blueprints
 * **Name**: `2_mask_blueprints.py`
 * **Function**: Masks the averaged `.func.gii` blueprints (from Script 1) with a given region of interest (ROI) mask (e.g., temporal lobe). The script intelligently uses the provided species name to find the correct files and directories, but allows for flexibility by overriding the default paths and patterns.
@@ -143,39 +142,36 @@ This pipeline processes connectivity blueprints through several stages:
 
 * **Key Arguments**:
     * `--species_name`: **(Required)** The name of the species (e.g., "human").
-    * `--input_avg_blueprint_basedir`: **(Optional)** Base directory for averaged blueprints. The script will look for a species subfolder inside this path. (Default: `results/1_average_blueprints`)
-    * `--mask_files_basedir`: **(Optional)** Base directory for mask files. The script will look for a species subfolder inside this path. (Default: `data/masks`)
-    * `--output_masked_blueprint_basedir`: **(Optional)** Base directory where masked blueprints will be saved. A species subfolder will be created here. (Default: `results/2_masked_average_blueprints`)
+    * `--input_avg_blueprint_basedir`: **(Optional)** Base directory for averaged blueprints. (Default: `results/1_average_blueprints`)
+    * `--mask_files_basedir`: **(Optional)** Base directory for mask files. (Default: `data/masks`)
+    * `--output_masked_blueprint_basedir`: **(Optional)** Base directory where masked blueprints will be saved. (Default: `results/2_masked_average_blueprints`)
     * `--hemispheres`: **(Optional)** Comma-separated hemispheres to process. (Default: `"L,R"`)
-    * `--avg_blueprint_name_pattern`, `--mask_name_pattern`, `--output_masked_name_pattern`: **(Optional)** Optional arguments to specify custom filename patterns if they differ from the defaults.
-
----
+    * `--avg_blueprint_name_pattern`, `--mask_name_pattern`, `--output_masked_name_pattern`: **(Optional)** Arguments to specify custom filename patterns.
+  
 ### Script 3: Compute Individual Species Gradients
 * **Name**: `3_individual_species_gradients.py`
 * **Function**: Computes connectivity gradients within the masked region for each species/hemisphere separately using spectral embedding. It automatically locates the necessary inputs from Script 2 and saves outputs to the correct directory based on the project's standard structure.
 * **Example Usage**:
 
-    **Basic command (using all default paths):**
+    **Basic command (processing multiple species):**
     ```bash
     python code/3_individual_species_gradients.py --species_list "human,chimpanzee"
     ```
 
-    **Advanced command (overriding the number of gradients output):**
+    **Advanced command (overriding a technical parameter):**
     ```bash
-    python code/3_individual_species_gradients.py \
-	--species_list "human" \
-	--max_gradients 15"
+    python code/3_individual_species_gradients.py --species_list "human" --max_gradients 15
     ```
 
 * **Key Arguments**:
-    * `--species_list`: **(Required)** Comma-separated list of species to process (e.g., `"human,chimpanzee"`).
-    * `--project_root`: **(Optional)** Path to the project's root directory. (Default: current folder -  `.`)
-    * `--hemispheres`: **(Optional)** Comma-separated list of hemispheres to process. (Default:`"L,R"`)
-    * `--max_gradients`: **(Optional)** Maximum number of gradients (embedding dimensions) to compute. (Default: `10`)
-    * `--max_k_knn`: **(Optional)** Maximum value of *k* to test when searching for a connected k-NN graph. (Default: `150`)
-    * `--default_k_knn`: **(Optional)** Fallback *k* used if no connected graph is found during adaptive search. (Default: is `20`)
-    * `--min_gain_dim_select`: **(Optional)** Minimum gain in reconstruction correlation required to select an additional gradient. (Default: `0.1`)
-
+    * `--species_list`: **(Required)** A comma-separated list of the species to process.
+    * `--project_root`: **(Optional)** Path to the project's root directory. (Default: `.`)
+    * `--hemispheres`: **(Optional)** Comma-separated list of hemispheres to process. (Default: `"L,R"`)
+    * `--max_gradients`: **(Optional)** Maximum number of gradients to compute. (Default: `10`)
+    * `--max_k_knn`: **(Optional)** Maximum value of *k* for the k-NN graph search. (Default: `150`)
+    * `--default_k_knn`: **(Optional)** Fallback *k* value. (Default: `20`)
+    * `--min_gain_dim_select`: **(Optional)** Minimum gain in score to select an additional gradient. (Default: `0.1`)
+ 
 ### Script 4: Visualize Individual/Combined Gradients (Static Plots)
 * **Name**: `4_visualize_gradients.py` (or `4_individual_species_gradients_analysis.py`)
 * **Function**: Generates static 2D or 3D scatter plots of temporal lobe vertices in gradient space, using outputs from Script 3. Can plot "individual" hemisphere gradients or "combined" (if Script 3 produces such outputs, or adapt to use outputs of Script 6 for combined visualization).
