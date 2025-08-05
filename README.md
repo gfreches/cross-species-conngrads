@@ -15,6 +15,9 @@ You can also find an online version of the 2-D interactive plot of this work in 
     * [Script 5: Downsample Blueprints via K-Means](#script-5-downsample-blueprints-via-k-means)
     * [Script 6: Compute Cross-Species Gradients](#script-6-compute-cross-species-gradients)
     * [Script 7: Interactive Gradient Visualization (Dash App)](#script-7-interactive-gradient-visualization-dash-app)
+    * [Script 8: Plot Cross-Species Gradients (Static Scatter Plots)](#script-8-plot-cross-species-gradients-static-scatter-plots)
+    * [Script 9: Plot Consolidated Spider Plots](#script-9-plot-consolidated-spider-plots)
+    * [Script 10: Run Permutation Analysis](#script-10-run-permutation-analysis)
 5.  [Outputs](#outputs)
 
 ## Prerequisites
@@ -73,14 +76,20 @@ your_project_root/
 │       │   └── <run_identifier>/
 │       └── <species_name>/         # Remapped cross-species gradients per species
 │           └── cross_species_gradients_remapped/
-└── code/                        # Where your Python scripts (1-7) reside
+│   ├── 8_static_cross_species_plots/ # Output of Script 8
+│   ├── 9_consolidated_spider_plots/  # Output of Script 9
+│   └── 10_permutation_analysis/      # Output of Script 10
+└── code/                        # Where your Python scripts (1-10) reside
 ├── 1_average_blueprints.py
 ├── 2_mask_blueprints.py
 ├── 3_individual_species_gradients.py
 ├── 4_visualize_gradients.py
 ├── 5_downsample_blueprints.py
 ├── 6_cross_species_gradients.py
-└── 7_interactive_analyse_cross_species.py
+├── 7_interactive_analyse_cross_species.py
+├── 8_plot_cross_species_gradients.py
+├── 9_plot_consolidated_spider_plots.py
+└── 10_run_permutation_analysis.py
 ```
 
 *Adjust paths in the script commands according to your actual structure.*
@@ -244,6 +253,63 @@ This pipeline processes connectivity blueprints through several stages:
     * `--host`, `--port`, `--debug`: For running the Dash application.
 * **Accessing the App**: After running, open your web browser and go to `http://<host>:<port>/` (e.g., `http://127.0.0.1:8051/`).
 
+### Script 8: Plot Cross-Species Gradients (Static Scatter Plots)
+* **Name**: `8_plot_cross_species_gradients.py`
+* **Function**: Generates static 2D scatter plots from the cross-species gradient data (`.npz` file) created by Script 6. This is useful for creating publication-quality figures of specific gradient comparisons (e.g., G1 vs G2, G1 vs G3).
+* **Example Command**:
+    ```bash
+    python code/8_plot_cross_species_gradients.py \
+        --npz_file "results/6_cross_species_gradients/intermediates/human_chimpanzee_CrossSpecies_kRef_chimpanzee/cross_species_embedding_data_human_chimpanzee_CrossSpecies_kRef_chimpanzee.npz" \
+        --output_dir "results/8_static_cross_species_plots/" \
+        --gradient_pairs "0_1,0_2"
+    ```
+* **Key Arguments**:
+    * `--npz_file`: Path to the `.npz` output file from Script 6 containing the cross-species embedding data.
+    * `--output_dir`: Directory where the output `.png` scatter plots will be saved.
+    * `--gradient_pairs`: Comma-separated list of gradient pairs to plot. The indices are 0-based. For example, `"0_1"` plots Gradient 1 vs Gradient 2. `"0_1,0_2,1_2"` would create three separate plots.
+
+### Script 9: Plot Consolidated Spider Plots
+* **Name**: `9_plot_consolidated_spider_plots.py`
+* **Function**: For each specified cross-species gradient, this script identifies the vertices (or centroids) that show the minimum and maximum expression of that gradient for each species/hemisphere. It then generates two consolidated spider plots per gradient: one for the max-expressing vertices and one for the min-expressing vertices, overlaying the blueprint profiles from all four species/hemisphere combinations.
+* **Example Command**:
+    ```bash
+    python code/9_plot_consolidated_spider_plots.py \
+        --npz_file "results/6_cross_species_gradients/intermediates/human_chimpanzee_CrossSpecies_kRef_chimpanzee/cross_species_embedding_data_human_chimpanzee_CrossSpecies_kRef_chimpanzee.npz" \
+        --masked_blueprint_dir "results/2_masked_average_blueprints/" \
+        --downsampled_data_dir "results/5_downsampled_blueprints/" \
+        --mask_base_dir "data/masks/" \
+        --output_dir "results/9_consolidated_spider_plots/" \
+        --gradients "0,1" \
+        --target_k_species "chimpanzee"
+    ```
+* **Key Arguments**:
+    * `--npz_file`: Path to the cross-species `.npz` file from script 6.
+    * `--masked_blueprint_dir`: Directory for masked average blueprints (script 2 output), used to get the blueprint profiles for plotting.
+    * `--downsampled_data_dir`: Directory for downsampled data (script 5 output), needed to map centroids back to original vertices for non-target species.
+    * `--mask_base_dir`: Directory for all species' masks, used to identify original temporal lobe vertices.
+    * `--output_dir`: Directory to save the output spider plot images.
+    * `--gradients`: Comma-separated list of 0-indexed gradients to analyze.
+    * `--target_k_species`: The species that was used as the reference for k-means downsampling (e.g., 'chimpanzee'). This is crucial for correctly locating data for other species.
+
+### Script 10: Run Permutation Analysis
+* **Name**: `10_run_permutation_analysis.py`
+* **Function**: Performs permutation testing to compare the mean gradient values between different groups (e.g., Human L vs. Human R, Human L vs. Chimp L). It prints the results to the console and can optionally save histograms of the null distributions.
+* **Example Command**:
+    ```bash
+    python code/10_run_permutation_analysis.py \
+        --npz_file "results/6_cross_species_gradients/intermediates/human_chimpanzee_CrossSpecies_kRef_chimpanzee/cross_species_embedding_data_human_chimpanzee_CrossSpecies_kRef_chimpanzee.npz" \
+        --output_dir "results/10_permutation_analysis/" \
+        --gradient_index 0 \
+        --n_permutations 10000
+    ```
+* **Key Arguments**:
+    * `--npz_file`: Path to the cross-species `.npz` file from script 6.
+    * `--output_dir`: Directory where output histograms will be saved.
+    * `--gradient_index`: The 0-indexed gradient to analyze.
+    * `--n_permutations`: The number of permutations to run for the test.
+    * `--alpha`: The significance level.
+    * `--no_histograms`: A flag to disable the generation of histogram plots.
+
 ## Outputs
 
 The pipeline generates several types of outputs in the specified `results` subdirectories:
@@ -258,3 +324,6 @@ The pipeline generates several types of outputs in the specified `results` subdi
     * An `.npz` archive containing the raw joint embedding, segment information, and eigenvalues.
     * Intermediate `.npy` files and dimensionality evaluation plots (Script 6).
 * **Interactive Visualization**: A web application (Script 7).
+* **Cross-Species Scatter Plots**: Static `.png` files showing relationships between different cross-species gradients (Script 8).
+* **Consolidated Spider Plots**: `.png` files showing the blueprint profiles of the vertices that express the minimum and maximum values for each cross-species gradient (Script 9).
+* **Permutation Analysis**: Console output with statistical results and optional `.png` histograms of null distributions (Script 10).
