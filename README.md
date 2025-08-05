@@ -27,8 +27,8 @@ You can also find an online version of the 2-D interactive plot of this work in 
 
 1.  **Clone the repository (if applicable):**
     ```bash
-    git clone [https://github.com/your_username/your_repository_name.git](https://github.com/your_username/your_repository_name.git)
-    cd your_repository_name
+    git clone https://github.com/gfreches/cross-species-conngrads.git
+    cd cross-species-conngrads
     ```
 
 2.  **Create a virtual environment (recommended):**
