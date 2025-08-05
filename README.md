@@ -122,27 +122,34 @@ This pipeline processes connectivity blueprints through several stages:
     * `--subject_dir_pattern`: Pattern for subject-specific data directories.
     * `--blueprint_filename`: Filename of blueprint files within subject directories.
 
+---
 ### Script 2: Mask Blueprints
 * **Name**: `2_mask_blueprints.py`
-* **Function**: Masks the averaged `.func.gii` blueprints (from Script 1) with a given region of interest (ROI) mask (e.g., temporal lobe).
-* **Example Command**:
+* **Function**: Masks the averaged `.func.gii` blueprints (from Script 1) with a given region of interest (ROI) mask (e.g., temporal lobe). The script intelligently uses the provided species name to find the correct files and directories, but allows for flexibility by overriding the default paths and patterns.
+* **Example Usage**:
+
+    **Basic command (using all default paths):**
+    ```bash
+    python code/2_mask_blueprints.py --species_name "human"
+    ```
+
+    **Advanced command (overriding the output directory):**
     ```bash
     python code/2_mask_blueprints.py \
         --species_name "human" \
-        --input_avg_blueprint_basedir "results/1_average_blueprints/" \
-        --mask_files_basedir "data/masks/" \
-        --output_masked_blueprint_basedir "results/2_masked_average_blueprints/" \
-        --hemispheres "L,R" \
-        --mask_name_pattern "{species_name}_{hemisphere}.func.gii" \
-        --avg_blueprint_name_pattern "average_{species_name}_blueprint.{hemisphere}.func.gii" \
-        --output_masked_name_pattern "average_{species_name}_blueprint.{hemisphere}_temporal_lobe_masked.func.gii"
+        --output_masked_blueprint_basedir "results_custom/masked_data"
     ```
-* **Key Arguments**:
-    * `--input_avg_blueprint_basedir`: Directory with averaged blueprints from Script 1 (expects species subfolders).
-    * `--mask_files_basedir`: Directory with mask `.func.gii` files (expects species subfolders).
-    * `--output_masked_blueprint_basedir`: Directory where masked blueprints will be saved (species subfolder created).
-    * `--mask_name_pattern`: Filename pattern for mask files.
+    *(This will use default locations for inputs but save the output to `results_custom/masked_data/human/`)*
 
+* **Key Arguments**:
+    * `--species_name`: **(Required)** The name of the species (e.g., "human").
+    * `--input_avg_blueprint_basedir`: Base directory for averaged blueprints. The script will look for a species subfolder inside this path. (Default: `results/1_average_blueprints`)
+    * `--mask_files_basedir`: Base directory for mask files. The script will look for a species subfolder inside this path. (Default: `data/masks`)
+    * `--output_masked_blueprint_basedir`: Base directory where masked blueprints will be saved. A species subfolder will be created here. (Default: `results/2_masked_average_blueprints`)
+    * `--hemispheres`: Comma-separated hemispheres to process. (Default: `"L,R"`)
+    * `--avg_blueprint_name_pattern`, `--mask_name_pattern`, `--output_masked_name_pattern`: Optional arguments to specify custom filename patterns if they differ from the defaults.
+
+---
 ### Script 3: Compute Individual Species Gradients
 * **Name**: `3_individual_species_gradients.py` (or `3_compute_gradients.py`)
 * **Function**: Computes connectivity gradients within the masked region for each species/hemisphere separately using spectral embedding.
