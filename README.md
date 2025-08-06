@@ -103,6 +103,7 @@ This pipeline processes connectivity blueprints through several stages:
 ### Script 1: Average Blueprints
 * **Name**: `1_average_blueprints.py`
 * **Function**: Calculates and saves the average connectivity blueprint for a given species and hemisphere from individual subject blueprint files (e.g., `.dscalar.nii`). Output is a `.func.gii` file.
+* **Note**: The results of this script for the example species (human and chimpanzee) are already available in the `results/1_average_blueprints` directory. You only need to run this script if you are processing your own data.
 * **Example Command**:
     ```bash
     python code/1_average_blueprints.py \
@@ -126,6 +127,7 @@ This pipeline processes connectivity blueprints through several stages:
 ### Script 2: Mask Blueprints
 * **Name**: `2_mask_blueprints.py`
 * **Function**: Masks the averaged `.func.gii` blueprints (from Script 1) with a given region of interest (ROI) mask (e.g., temporal lobe). The script intelligently uses the provided species name to find the correct files and directories, but allows for flexibility by overriding the default paths and patterns.
+* **Note**: The results of this script for the example species are also pre-calculated and can be found in the `results/2_masked_average_blueprints` directory.
 * **Example Usage**:
 
     **Basic command (using all default paths):**
