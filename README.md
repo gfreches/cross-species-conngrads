@@ -11,10 +11,10 @@ You can also find an online version of the 2-D interactive plot of this work in 
     * [Script 1: Average Blueprints](#script-1-average-blueprints)
     * [Script 2: Mask Blueprints](#script-2-mask-blueprints)
     * [Script 3: Compute Individual Species Gradients](#script-3-compute-individual-species-gradients)
-    * [Script 4: Visualize Individual/Combined Gradients (Static Plots)](#script-4-visualize-individualcombined-gradients-static-plots)
+    * [Script 4: Visualize Individual/Combined Gradients (Static Plots)](#script-4-visualize-individual-combined-gradients-static-plots)
     * [Script 5: Downsample Blueprints via K-Means](#script-5-downsample-blueprints-via-k-means)
     * [Script 6: Compute Cross-Species Gradients](#script-6-compute-cross-species-gradients)
-    * [Script 7: Interactive Gradient Visualization (Dash App)](#script-7-interactive-gradient-visualization-dash-app)
+    * [Script 7: Interactive Gradient Visualization (Dash App)](#script-7-interactive-plot-cross-species)
     * [Script 8: Plot Cross-Species Gradients (Static Scatter Plots)](#script-8-plot-cross-species-gradients-static-scatter-plots)
     * [Script 9: Plot Consolidated Spider Plots](#script-9-plot-consolidated-spider-plots)
     * [Script 10: Run Permutation Analysis](#script-10-run-permutation-analysis)
@@ -84,10 +84,10 @@ your_project_root/
 ├── 1_average_blueprints.py
 ├── 2_mask_blueprints.py
 ├── 3_individual_species_gradients.py
-├── 4_visualize_gradients.py
-├── 5_downsample_blueprints.py
+├── 4_individual_species_gradients_analysis.py
+├── 5_downsample_blueprints_knn.py
 ├── 6_cross_species_gradients.py
-├── 7_interactive_analyse_cross_species.py
+├── 7_interactive_plot_cross_species.py
 ├── 8_plot_cross_species_gradients.py
 ├── 9_plot_consolidated_spider_plots.py
 └── 10_run_permutation_analysis.py
@@ -105,7 +105,7 @@ This pipeline processes connectivity blueprints through several stages:
 * **Function**: Calculates and saves the average connectivity blueprint for a given species and hemisphere from individual subject blueprint files (e.g., `.dscalar.nii`). Output is a `.func.gii` file.
 * **Example Command**:
     ```bash
-    python scripts/1_average_blueprints.py \
+    python code/1_average_blueprints.py \
         --species_name "human" \
         --subject_list_file "data/subject_lists/human_subjects.txt" \
         --data_base_dir "data/raw_individual_blueprints/" \
@@ -115,12 +115,13 @@ This pipeline processes connectivity blueprints through several stages:
         --blueprint_filename "BP.{hemisphere}.dscalar.nii"
     ```
 * **Key Arguments**:
-    * `--species_name`: Name of the species.
-    * `--subject_list_file`: Path to file listing subject IDs.
-    * `--data_base_dir`: Base directory for raw input data.
-    * `--output_base_dir`: Base directory where averaged blueprints will be saved (a subdirectory for `species_name` will be created).
-    * `--subject_dir_pattern`: Pattern for subject-specific data directories.
-    * `--blueprint_filename`: Filename of blueprint files within subject directories.
+    * `--species_name`: **(Required)** Name of the species.
+    * `--subject_list_file`: **(Required)** Path to file listing subject IDs.
+    * `--data_base_dir`: **(Required)** Base directory for raw input data.
+    * `--output_base_dir`: **(Required)** Base directory where averaged blueprints will be saved (a subdirectory for `species_name` will be created).
+    * `--hemispheres`: **(Optional)** Comma-separated list of hemisphere labels to process (e.g., "L,R" or "L"). (Default: "L,R").
+    * `--subject_dir_pattern`: **(Required)** Pattern for subject-specific data directories.
+    * `--blueprint_filename`: **(Required)** Filename of blueprint files within subject directories.
 
 ### Script 2: Mask Blueprints
 * **Name**: `2_mask_blueprints.py`
@@ -145,8 +146,10 @@ This pipeline processes connectivity blueprints through several stages:
     * `--input_avg_blueprint_basedir`: **(Optional)** Base directory for averaged blueprints. (Default: `results/1_average_blueprints`)
     * `--mask_files_basedir`: **(Optional)** Base directory for mask files. (Default: `data/masks`)
     * `--output_masked_blueprint_basedir`: **(Optional)** Base directory where masked blueprints will be saved. (Default: `results/2_masked_average_blueprints`)
-    * `--hemispheres`: **(Optional)** Comma-separated hemispheres to process. (Default: `"L,R"`)
-    * `--avg_blueprint_name_pattern`, `--mask_name_pattern`, `--output_masked_name_pattern`: **(Optional)** Arguments to specify custom filename patterns.
+    * `--hemispheres`: **(Optional)** Comma-separated hemispheres to process. (Default: "L,R")
+    * `--avg_blueprint_name_pattern`: **(Optional)** Filename pattern for averaged blueprints. (Default: "average_{species_name}_blueprint.{hemisphere}.func.gii")
+    * `--mask_name_pattern`: **(Optional)** Filename pattern for masks. (Default: "{species_name}_{hemisphere}.func.gii")
+    * `--output_masked_name_pattern`: **(Optional)** Filename pattern for output masked blueprints. (Default: "average_{species_name}_blueprint.{hemisphere}_temporal_lobe_masked.func.gii")
   
 ### Script 3: Compute Individual Species Gradients
 * **Name**: `3_individual_species_gradients.py`
@@ -165,12 +168,12 @@ This pipeline processes connectivity blueprints through several stages:
 
 * **Key Arguments**:
     * `--species_list`: **(Required)** A comma-separated list of the species to process.
-    * `--project_root`: **(Optional)** Path to the project's root directory. (Default: `.`)
-    * `--hemispheres`: **(Optional)** Comma-separated list of hemispheres to process. (Default: `"L,R"`)
-    * `--max_gradients`: **(Optional)** Maximum number of gradients to compute. (Default: `10`)
-    * `--max_k_knn`: **(Optional)** Maximum value of *k* for the k-NN graph search. (Default: `150`)
-    * `--default_k_knn`: **(Optional)** Fallback *k* value. (Default: `20`)
-    * `--min_gain_dim_select`: **(Optional)** Minimum gain in score to select an additional gradient. (Default: `0.1`)
+    * `--project_root`: **(Optional)** Path to the project's root directory. (Default: ".")
+    * `--hemispheres`: **(Optional)** Comma-separated list of hemispheres to process. (Default: "L,R")
+    * `--max_gradients`: **(Optional)** Maximum number of gradients to compute. (Default: 10)
+    * `--max_k_knn`: **(Optional)** Maximum value of *k* for the k-NN graph search. (Default: 150)
+    * `--default_k_knn`: **(Optional)** Fallback *k* value. (Default: 20)
+    * `--min_gain_dim_select`: **(Optional)** Minimum gain in score to select an additional gradient. (Default: 0.1)
  
 ### Script 4: Visualize Individual/Combined Gradients (Static Plots)
 * **Name**: `4_individual_species_gradients_analysis.py`
@@ -194,26 +197,26 @@ This pipeline processes connectivity blueprints through several stages:
 
 * **Key Arguments**:
     * `--species_list`: **(Required)** A comma-separated list of species to process.
-    * `--gradients_to_plot`: **(Optional)** Comma-separated 1-indexed gradient numbers to plot (e.g., `"1,2"` or `"1,2,3"`). Defaults to `"1,2,3"`.
-    * `--plot_type`: **(Optional)** Type of plot to generate. Choices: `combined`, `individual`. Defaults to `combined`.
-    * `--plot_2d_projections`: **(Optional)** When plotting 3 gradients, add this flag to also generate all three corresponding 2D scatter plots.
-    * `--project_root`: **(Optional)** Path to the project's root directory. Defaults to the current directory (`.`).p
+    * `--project_root`: **(Optional)** Path to the project's root directory. (Default: ".")
+    * `--plot_type`: **(Optional)** Type of plot to generate. Choices: `combined`, `individual`. (Default: "combined")
+    * `--gradients_to_plot`: **(Optional)** Comma-separated 1-indexed gradient numbers to plot (e.g., "1,2" or "1,2,3"). (Default: "1,2,3")
+    * `--plot_2d_projections`: **(Optional)** If plotting 3 gradients, also generate 2D projection scatter plots. (Default: False)
 
 ### Script 5: Downsample Blueprints via K-Means
-* **Name**: `5_downsample_blueprints.py`
+* **Name**: `5_downsample_blueprints_knn.py`
 * **Function**: Downsamples masked average blueprints (from Script 2) for specified source species using k-means clustering. The number of clusters (`k`) is determined by the temporal lobe vertex count of a specified `target_k_species`. Outputs include centroid profiles (`.npy`), vertex labels (`.npy`), and a visual downsampled blueprint (`.func.gii`).
 * **Example Command**:
     ```bash
-    python code/5_downsample_blueprints.py \
+    python code/5_downsample_blueprints_knn.py \
         --source_species_list "human" \
         --target_species_for_k "chimpanzee"
     ```
 * **Key Arguments**:
     * `--source_species_list`: **(Required)** Comma-separated list of source species to downsample.
     * `--target_species_for_k`: **(Required)** The species whose temporal lobe vertex count will be used to define `k`.
-    * `--project_root`: **(Optional)** Path to the project's root directory. Defaults to the current directory (`.`).
-    * `--hemispheres`: **(Optional)** Comma-separated list of hemispheres to process. Defaults to `"L,R"`.
-    * `--n_tracts_expected`: **(Optional)** Expected number of features/tracts in the blueprint data. Defaults to `20`.
+    * `--project_root`: **(Optional)** Path to the project's root directory. (Default: ".")
+    * `--hemispheres`: **(Optional)** Comma-separated list of hemispheres to process. (Default: "L,R")
+    * `--n_tracts_expected`: **(Optional)** Expected number of features/tracts in the blueprint data. (Default: 20)
 
 ### Script 6: Compute Cross-Species Gradients
 * **Name**: `6_cross_species_gradients.py`
@@ -227,16 +230,20 @@ This pipeline processes connectivity blueprints through several stages:
 * **Key Arguments**:
     * `--species_list_for_lle`: **(Required)** Comma-separated list of all species to include in the joint analysis.
     * `--target_k_species`: **(Required)** The species from the list that will provide its original, non-downsampled blueprint as the reference.
-    * `--project_root`: **(Optional)** Path to the project's root directory. Defaults to the current directory (`.`).
-    * `--hemispheres_to_process`: **(Optional)** Comma-separated list of hemispheres to process. Defaults to `"L,R"`.
-    * `--num_gradients_to_save`: **(Optional)** Number of top gradients to save in the final output files. Defaults to `10`.
+    * `--project_root`: **(Optional)** Path to the project's root directory. (Default: ".")
+    * `--hemispheres_to_process`: **(Optional)** Comma-separated list of hemispheres to process. (Default: "L,R")
+    * `--num_gradients_to_save`: **(Optional)** Number of top gradients to save in the final output files. (Default: 10)
+    * `--max_gradients`: **(Optional)** Maximum number of gradients to compute. (Default: 10)
+    * `--max_k_knn`: **(Optional)** Maximum value of *k* for the k-NN graph search. (Default: 200)
+    * `--default_k_knn`: **(Optional)** Fallback *k* value. (Default: 30)
+    * `--min_gain_dim_select`: **(Optional)** Minimum gain in score to select an additional gradient. (Default: 0.1)
 
 ### Script 7: Interactive Gradient Visualization (Dash App)
-* **Name**: `7_interactive_analyse_cross_species.py`
+* **Name**: `7_interactive_plot_cross_species.py`
 * **Function**: Launches an interactive Dash web application to visualize the cross-species gradients from a specified Script 6 run. It allows clicking on points to see their original connectivity profiles (spider plots) and find closest neighbors. The script automatically finds the required input files.
 * **Example Command**:
     ```bash
-    python code/7_interactive_analyse_cross_species.py \
+    python code/7_interactive_plot_cross_species.py \
         --species_list_for_run "human,chimpanzee" \
         --target_k_species_for_run "chimpanzee" \
         --port 8051
@@ -244,9 +251,12 @@ This pipeline processes connectivity blueprints through several stages:
 * **Key Arguments**:
     * `--species_list_for_run`: **(Required)** Comma-separated list of species included in the Script 6 run. **Must be in the same order as the original run.**
     * `--target_k_species_for_run`: **(Required)** The reference species (`target_k_species`) used in the Script 6 run.
-    * `--project_root`: **(Optional)** Path to the project's root directory. Defaults to the current directory (`.`).
-    * `--tract_names`, `--n_tracts`: **(Optional)** Configuration for the spider plots.
-    * `--host`, `--port`, `--debug`: **(Optional)** Arguments to configure the Dash web server.
+    * `--project_root`: **(Optional)** Path to the project's root directory. (Default: ".")
+    * `--n_tracts`: **(Optional)** Expected number of tracts/features. (Default: 20)
+    * `--tract_names`: **(Optional)** Comma-separated list of tract names for spider plots. (Default: "AC,AF,AR,CBD,CBP,CBT,CST,FA,FMI,FMA,FX,IFOF,ILF,MDLF,OR,SLF I,SLF II,SLF III,UF,VOF")
+    * `--host`: **(Optional)** Host address for the Dash app. (Default: "127.0.0.1")
+    * `--port`: **(Optional)** Port for the Dash app. (Default: 8050)
+    * `--debug`: **(Optional)** Enable Dash debug mode. (Default: False)
 * **Accessing the App**: After running, open your web browser and go to `http://<host>:<port>/` (e.g., `http://127.0.0.1:8051/`).
 
 ### Script 8: Plot Cross-Species Gradients (Static Scatter Plots)
@@ -262,8 +272,8 @@ This pipeline processes connectivity blueprints through several stages:
 * **Key Arguments**:
     * `--species_list_for_run`: **(Required)** Comma-separated list of species included in the Script 6 run. **Must be in the same order as the original run.**
     * `--target_k_species_for_run`: **(Required)** The reference species (`target_k_species`) used in the Script 6 run.
-    * `--gradient_pairs`: **(Optional)** Comma-separated list of 0-indexed gradient pairs to plot (e.g., `"0_1,0_2"`). Defaults to `"0_1"`.
-    * `--project_root`: **(Optional)** Path to the project's root directory. Defaults to the current directory (`.`).
+    * `--project_root`: **(Optional)** Path to the project's root directory. (Default: ".")
+    * `--gradient_pairs`: **(Optional)** Comma-separated list of 0-indexed gradient pairs to plot (e.g., "0_1,0_2"). (Default: "0_1")
 
 ### Script 9: Plot Consolidated Spider Plots
 * **Name**: `9_plot_consolidated_spider_plots.py`
@@ -278,9 +288,10 @@ This pipeline processes connectivity blueprints through several stages:
 * **Key Arguments**:
     * `--species_list_for_run`: **(Required)** Comma-separated list of species included in the Script 6 run. **Must be in the same order as the original run.**
     * `--target_k_species_for_run`: **(Required)** The reference species (`target_k_species`) used in the Script 6 run.
-    * `--gradients`: **(Optional)** Comma-separated list of 0-indexed gradients to analyze. Defaults to `"0,1"`.
-    * `--project_root`: **(Optional)** Path to the project's root directory. Defaults to the current directory (`.`).
-    * `--tract_names`: **(Optional)** Comma-separated list of tract names for the spider plot labels.
+    * `--project_root`: **(Optional)** Path to the project's root directory. (Default: ".")
+    * `--gradients`: **(Optional)** Comma-separated list of 0-indexed gradients to analyze. (Default: "0,1")
+    * `--n_tracts`: **(Optional)** Expected number of tracts in the blueprints. (Default: 20)
+    * `--tract_names`: **(Optional)** Comma-separated list of tract names for the spider plot labels. (Default: "AC,AF,AR,CBD,CBP,CBT,CST,FA,FMI,FMA,FX,IFOF,ILF,MDLF,OR,SLF I,SLF II,SLF III,UF,VOF")
 
 ### Script 10: Run Permutation Analysis
 * **Name**: `10_run_permutation_analysis.py`
@@ -294,11 +305,11 @@ This pipeline processes connectivity blueprints through several stages:
 * **Key Arguments**:
     * `--species_list_for_run`: **(Required)** Comma-separated list of species included in the Script 6 run. **Must be in the same order as the original run.**
     * `--target_k_species_for_run`: **(Required)** The reference species (`target_k_species`) used in the Script 6 run.
-    * `--gradient_index`: **(Optional)** The 0-indexed gradient to analyze. (Default: `0`)
-    * `--project_root`: **(Optional)** Path to the project's root directory. (Default: `.`)
-    * `--n_permutations`: **(Optional)** The number of permutations to run for the test. (Default: `10000`)
-    * `--alpha`: **(Optional)** The significance level for the test. (Default: `0.01`)
-    * `--no_histograms`: **(Optional)** A flag to disable saving histogram plots. (Default: Histograms are generated)
+    * `--project_root`: **(Optional)** Path to the project's root directory. (Default: ".")
+    * `--gradient_index`: **(Optional)** The 0-indexed gradient to analyze. (Default: 0)
+    * `--n_permutations`: **(Optional)** The number of permutations to run for the test. (Default: 10000)
+    * `--alpha`: **(Optional)** The significance level for the test. (Default: 0.01)
+    * `--no_histograms`: **(Optional)** A flag to disable saving histogram plots of the null distributions. (Default: False, meaning histograms are generated)
 
 ## Outputs
 
