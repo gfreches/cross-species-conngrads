@@ -139,18 +139,63 @@ def main(args):
 
 
 if __name__ == "__main__":
+    # --- NEW: Simplified Argument Parser ---
     parser = argparse.ArgumentParser(
         description="Run permutation tests for mean differences in cross-species gradient values.",
         formatter_class=argparse.ArgumentDefaultsHelpFormatter
     )
-    parser.add_argument('--npz_file', type=str, required=True, help="Path to the cross-species .npz file from script 6.")
-    parser.add_argument('--output_dir', type=str, required=True, help="Directory to save analysis results and plots.")
-    parser.add_argument('--gradient_index', type=int, default=DEFAULT_GRADIENT_INDEX_TO_ANALYZE, help="0-indexed gradient to analyze.")
-    parser.add_argument('--n_permutations', type=int, default=DEFAULT_N_PERMUTATIONS, help="Number of permutations to run.")
-    parser.add_argument('--alpha', type=float, default=DEFAULT_ALPHA_LEVEL, help="Alpha level for significance testing.")
-    parser.add_argument('--no_histograms', action='store_true', help="If set, do not generate and save histogram plots.")
+    # Required arguments to identify the specific Script 6 run
+    parser.add_argument('--species_list_for_run', type=str, required=True,
+                        help='Comma-separated list of the species included in the run (e.g., "human,chimpanzee").')
+    parser.add_argument('--target_k_species_for_run', type=str, required=True,
+                        help='The target_k_species used as the reference in the run.')
+    
+    # Optional arguments with sensible defaults
+    parser.add_argument('--project_root', type=str, default='.',
+                        help='Path to the project root directory containing data/ and results/.')
+    parser.add_argument('--gradient_index', type=int, default=DEFAULT_GRADIENT_INDEX_TO_ANALYZE,
+                        help="0-indexed gradient to analyze.")
+    parser.add_argument('--n_permutations', type=int, default=DEFAULT_N_PERMUTATIONS,
+                        help="Number of permutations to run.")
+    parser.add_argument('--alpha', type=float, default=DEFAULT_ALPHA_LEVEL,
+                        help="Alpha level for significance testing.")
+    parser.add_argument('--no_histograms', action='store_true',
+                        help="If set, do not generate and save histogram plots.")
 
     parsed_args = parser.parse_args()
 
-    main(parsed_args)
+    # --- NEW: Create a new namespace/object to hold all arguments for the main function ---
+    class RunArgs:
+        pass
+    args_for_run = RunArgs()
+
+    # --- NEW: Populate arguments by automatically determining paths ---
+    try:
+        # Reconstruct the run identifier to find the correct .npz file
+        species_list = [s.strip().lower() for s in parsed_args.species_list_for_run.split(',')]
+        species_str = "_".join(species_list) # Use the same non-sorted order as Script 6
+        target_species_str = parsed_args.target_k_species_for_run.strip().lower()
+        run_identifier = f"{species_str}_CrossSpecies_kRef_{target_species_str}"
+
+        # Construct full paths to the input NPZ file and the output directory
+        npz_filename = f"cross_species_embedding_data_{run_identifier}.npz"
+        args_for_run.npz_file = os.path.join(
+            parsed_args.project_root, 'results', '6_cross_species_gradients', 
+            'intermediates', run_identifier, npz_filename
+        )
+        args_for_run.output_dir = os.path.join(
+            parsed_args.project_root, 'results', '10_permutation_analysis', run_identifier
+        )
+    except Exception as e:
+        print(f"Error constructing paths from species info: {e}")
+        exit(1)
+
+    # Copy over the remaining arguments
+    args_for_run.gradient_index = parsed_args.gradient_index
+    args_for_run.n_permutations = parsed_args.n_permutations
+    args_for_run.alpha = parsed_args.alpha
+    args_for_run.no_histograms = parsed_args.no_histograms
+
+    # --- Call the main processing function with the fully populated arguments ---
+    main(args_for_run)
     print("\n--- Permutation testing script finished ---")

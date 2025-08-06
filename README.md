@@ -284,22 +284,21 @@ This pipeline processes connectivity blueprints through several stages:
 
 ### Script 10: Run Permutation Analysis
 * **Name**: `10_run_permutation_analysis.py`
-* **Function**: Performs permutation testing to compare the mean gradient values between different groups (e.g., Human L vs. Human R, Human L vs. Chimp L). It prints the results to the console and can optionally save histograms of the null distributions.
+* **Function**: Performs permutation testing to compare the mean gradient values between different groups (e.g., Human L vs. Human R, Human L vs. Chimp L). It automatically finds the correct input data from the specified Script 6 run, prints the results to the console, and can optionally save histograms of the null distributions.
 * **Example Command**:
     ```bash
     python code/10_run_permutation_analysis.py \
-        --npz_file "results/6_cross_species_gradients/intermediates/human_chimpanzee_CrossSpecies_kRef_chimpanzee/cross_species_embedding_data_human_chimpanzee_CrossSpecies_kRef_chimpanzee.npz" \
-        --output_dir "results/10_permutation_analysis/" \
-        --gradient_index 0 \
-        --n_permutations 10000
+        --species_list_for_run "human,chimpanzee" \
+        --target_k_species_for_run "chimpanzee"
     ```
 * **Key Arguments**:
-    * `--npz_file`: Path to the cross-species `.npz` file from script 6.
-    * `--output_dir`: Directory where output histograms will be saved.
-    * `--gradient_index`: The 0-indexed gradient to analyze.
-    * `--n_permutations`: The number of permutations to run for the test.
-    * `--alpha`: The significance level.
-    * `--no_histograms`: A flag to disable the generation of histogram plots.
+    * `--species_list_for_run`: **(Required)** Comma-separated list of species included in the Script 6 run. **Must be in the same order as the original run.**
+    * `--target_k_species_for_run`: **(Required)** The reference species (`target_k_species`) used in the Script 6 run.
+    * `--gradient_index`: **(Optional)** The 0-indexed gradient to analyze. (Default: `0`)
+    * `--project_root`: **(Optional)** Path to the project's root directory. (Default: `.`)
+    * `--n_permutations`: **(Optional)** The number of permutations to run for the test. (Default: `10000`)
+    * `--alpha`: **(Optional)** The significance level for the test. (Default: `0.01`)
+    * `--no_histograms`: **(Optional)** A flag to disable saving histogram plots. (Default: Histograms are generated)
 
 ## Outputs
 
