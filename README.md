@@ -197,29 +197,23 @@ This pipeline processes connectivity blueprints through several stages:
     * `--gradients_to_plot`: **(Optional)** Comma-separated 1-indexed gradient numbers to plot (e.g., `"1,2"` or `"1,2,3"`). Defaults to `"1,2,3"`.
     * `--plot_type`: **(Optional)** Type of plot to generate. Choices: `combined`, `individual`. Defaults to `combined`.
     * `--plot_2d_projections`: **(Optional)** When plotting 3 gradients, add this flag to also generate all three corresponding 2D scatter plots.
-    * `--project_root`: **(Optional)** Path to the project's root directory. Defaults to the current directory (`.`).
+    * `--project_root`: **(Optional)** Path to the project's root directory. Defaults to the current directory (`.`).p
+
 ### Script 5: Downsample Blueprints via K-Means
 * **Name**: `5_downsample_blueprints.py`
 * **Function**: Downsamples masked average blueprints (from Script 2) for specified source species using k-means clustering. The number of clusters (`k`) is determined by the temporal lobe vertex count of a specified `target_k_species`. Outputs include centroid profiles (`.npy`), vertex labels (`.npy`), and a visual downsampled blueprint (`.func.gii`).
 * **Example Command**:
     ```bash
     python code/5_downsample_blueprints.py \
-        --input_masked_blueprint_dir "results/2_masked_average_blueprints/" \
-        --input_mask_dir "data/masks/" \
-        --output_dir "results/5_downsampled_blueprints/" \
         --source_species_list "human" \
-        --target_species_for_k "chimpanzee" \
-        --hemispheres "L,R" \
-        --masked_blueprint_pattern "average_{species_name}_blueprint.{hemisphere}_temporal_lobe_masked.func.gii" \
-        --mask_pattern "{species_name}_{hemisphere}.func.gii" \
-        --n_tracts_expected 20
+        --target_species_for_k "chimpanzee"
     ```
 * **Key Arguments**:
-    * `--input_masked_blueprint_dir`: Output from Script 2.
-    * `--input_mask_dir`: Directory with masks (for source species and for target_k_species).
-    * `--output_dir`: Base directory for downsampled outputs.
-    * `--source_species_list`: Species to downsample.
-    * `--target_species_for_k`: Species whose TL vertex count defines `k`.
+    * `--source_species_list`: **(Required)** Comma-separated list of source species to downsample.
+    * `--target_species_for_k`: **(Required)** The species whose temporal lobe vertex count will be used to define `k`.
+    * `--project_root`: **(Optional)** Path to the project's root directory. Defaults to the current directory (`.`).
+    * `--hemispheres`: **(Optional)** Comma-separated list of hemispheres to process. Defaults to `"L,R"`.
+    * `--n_tracts_expected`: **(Optional)** Expected number of features/tracts in the blueprint data. Defaults to `20`.
 
 ### Script 6: Compute Cross-Species Gradients
 * **Name**: `6_cross_species_gradients.py`

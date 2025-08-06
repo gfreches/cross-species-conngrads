@@ -283,52 +283,54 @@ if __name__ == "__main__":
                     "vertex count of a specified target species.",
         formatter_class=argparse.ArgumentDefaultsHelpFormatter
     )
-    parser.add_argument('--input_masked_blueprint_dir', type=str, required=True,
-                        help="Base directory of masked average blueprints (output of Script 2), "
-                             "containing species subfolders.")
-    parser.add_argument('--input_mask_dir', type=str, required=True,
-                        help="Base directory for temporal lobe mask .func.gii files, "
-                             "containing species subfolders.")
-    parser.add_argument('--output_dir', type=str, required=True,
-                        help="Base directory where all outputs of this script will be saved.")
+    # Required arguments that define the core logic
     parser.add_argument('--source_species_list', type=str, required=True,
                         help='Comma-separated list of source species names to downsample.')
     parser.add_argument('--target_species_for_k', type=str, required=True,
                         help='Name of the target species whose temporal lobe vertex count will define k.')
-    parser.add_argument('--hemispheres', type=str, default="L,R",
-                        help='Comma-separated list of hemisphere labels to process (e.g., "L,R").')
     
-    parser.add_argument('--masked_blueprint_pattern', type=str,
-                        default="average_{species_name}_blueprint.{hemisphere}_temporal_lobe_masked.func.gii",
-                        help='Filename pattern for masked blueprints from Script 2. Placeholders: {species_name}, {hemisphere}.')
-    parser.add_argument('--mask_pattern', type=str, required=True,
-                        help='Filename pattern for temporal lobe masks. Placeholders: {species_name}, {hemisphere}.')
+    # Optional arguments with sensible defaults
+    parser.add_argument('--project_root', type=str, default='.',
+                        help='Path to the project root directory containing data/ and results/.')
+    parser.add_argument('--hemispheres', type=str, default="L,R",
+                        help='Comma-separated list of hemisphere labels to process.')
     parser.add_argument('--n_tracts_expected', type=int, default=DEFAULT_N_TRACTS_EXPECTED,
                         help="Expected number of tracts/features in the blueprint data.")
 
     args = parser.parse_args()
 
-    if not os.path.exists(args.output_dir):
-        os.makedirs(args.output_dir, exist_ok=True)
-        print(f"Created main output directory: {args.output_dir}")
+    input_masked_blueprint_dir = os.path.join(args.project_root, 'results', '2_masked_average_blueprints')
+    input_mask_dir = os.path.join(args.project_root, 'data', 'masks')
+    output_dir = os.path.join(args.project_root, 'results', '5_downsampled_blueprints')
 
+    if not os.path.exists(output_dir):
+        os.makedirs(output_dir, exist_ok=True)
+        print(f"Created main output directory: {output_dir}")
+
+    # --- NEW: Filename patterns are now defined inside the script ---
+    # These patterns are used for both source and target species as needed
+    mask_pattern = "{species_name}_{hemisphere}.func.gii"
+    masked_blueprint_pattern = "average_{species_name}_blueprint.{hemisphere}_temporal_lobe_masked.func.gii"
+
+    # --- Determine k from the target species (logic is the same, but uses constructed paths) ---
     k_values_per_hem = {}
     print(f"\n--- Determining k from {args.target_species_for_k} masks ---")
     hemisphere_list_for_k = [h.strip() for h in args.hemispheres.split(',')]
     for hem in hemisphere_list_for_k:
-        k = get_temporal_lobe_vertex_count(args.target_species_for_k, hem, args.input_mask_dir, args.mask_pattern)
+        k = get_temporal_lobe_vertex_count(args.target_species_for_k, hem, input_mask_dir, mask_pattern)
         if k is None:
             print(f"FATAL: Could not determine k for hemisphere {hem} from {args.target_species_for_k} mask. Exiting.")
             exit(1)
         k_values_per_hem[hem] = k
 
+    # --- Main processing loop (logic is the same, but uses constructed paths/patterns) ---
     source_species_to_process = [s.strip() for s in args.source_species_list.split(',')]
     hemispheres_to_process = [h.strip() for h in args.hemispheres.split(',')]
 
     for species in source_species_to_process:
-        species_masked_bp_input_base = os.path.join(args.input_masked_blueprint_dir, species)
-        species_mask_input_base = os.path.join(args.input_mask_dir, species) # Assuming masks also in species subfolders
-        species_downsampled_output_base = os.path.join(args.output_dir, species)
+        species_masked_bp_input_base = os.path.join(input_masked_blueprint_dir, species)
+        species_mask_input_base = os.path.join(input_mask_dir, species)
+        species_downsampled_output_base = os.path.join(output_dir, species)
         
         if not os.path.exists(species_downsampled_output_base):
             os.makedirs(species_downsampled_output_base, exist_ok=True)
@@ -337,10 +339,10 @@ if __name__ == "__main__":
         for hem in hemispheres_to_process:
             num_clusters_for_hem = k_values_per_hem[hem]
             
-            source_blueprint_filename = args.masked_blueprint_pattern.format(species_name=species, hemisphere=hem)
+            source_blueprint_filename = masked_blueprint_pattern.format(species_name=species, hemisphere=hem)
             source_blueprint_path = os.path.join(species_masked_bp_input_base, source_blueprint_filename)
             
-            source_mask_filename = args.mask_pattern.format(species_name=species, hemisphere=hem)
+            source_mask_filename = mask_pattern.format(species_name=species, hemisphere=hem)
             source_mask_path = os.path.join(species_mask_input_base, source_mask_filename)
             
             output_file_prefix = f"{species}_{hem}_k{num_clusters_for_hem}"
@@ -355,5 +357,5 @@ if __name__ == "__main__":
                 output_dir=species_downsampled_output_base,
                 output_prefix=output_file_prefix
             )
-                    
+            
     print("\n--- All downsampling processing complete ---")
