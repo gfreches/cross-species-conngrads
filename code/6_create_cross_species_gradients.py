@@ -624,50 +624,22 @@ def run_cross_species_lle(args):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
-        description="Perform cross-species gradient analysis using Spectral Embedding. "
-                    "Uses original masked blueprints for the target_k_species "
-                    "and downsampled (k-means centroids) blueprints for other source species.",
+        description="Perform cross-species gradient analysis using Spectral Embedding.",
         formatter_class=argparse.ArgumentDefaultsHelpFormatter
     )
-    # Input Directories
-    parser.add_argument('--target_species_bp_dir', type=str, required=True,
-                        help="Base directory for the target_k_species's masked average blueprints "
-                             "(Script 2 output), expects a subfolder named after target_k_species.")
-    parser.add_argument('--other_species_downsampled_dir', type=str, required=True,
-                        help="Base directory for other species' downsampled blueprints "
-                             "(Script 5 output, containing centroids & labels), expects species subfolders.")
-    parser.add_argument('--mask_dir', type=str, required=True,
-                        help="Base directory for all species' temporal lobe mask .func.gii files, "
-                             "expects species subfolders.")
-    parser.add_argument('--output_dir', type=str, required=True,
-                        help="Base directory where all outputs of this script "
-                             "(cross-species gradients, plots, intermediates) will be saved.")
+    # Required arguments that define the core logic
+    parser.add_argument('--species_list_for_lle', type=str, required=True,
+                        help='Comma-separated list of ALL species to include in the joint LLE (e.g., "human,chimpanzee").')
+    parser.add_argument('--target_k_species', type=str, required=True,
+                        help='The species from --species_list_for_lle that provides its original (non-downsampled) blueprint.')
 
-    # Species Configuration
-    parser.add_argument('--species_list_for_lle', type=str, default="human,chimpanzee",
-                        help='Comma-separated list of ALL species to include in the joint LLE (e.g., "human,chimpanzee"). '
-                             'The target_k_species must be in this list.')
-    parser.add_argument('--target_k_species', type=str, default="chimpanzee",
-                        help='The species from --species_list_for_lle whose temporal lobe vertex count will define k '
-                             'for downsampling other species AND provides its original (non-downsampled) blueprint.')
+    # Optional arguments with sensible defaults
+    parser.add_argument('--project_root', type=str, default='.',
+                        help='Path to the project root directory containing data/ and results/.')
     parser.add_argument('--hemispheres_to_process', type=str, default="L,R",
-                        help='Comma-separated list of hemisphere labels to process (e.g., "L,R").')
-
-    # Filename Patterns
-    parser.add_argument('--target_species_bp_pattern', type=str,
-                        default="average_{species_name}_blueprint.{hemisphere}_temporal_lobe_masked.func.gii",
-                        help='Filename pattern for the target_k_species masked blueprints. '
-                             'Placeholders: {species_name}, {hemisphere}.')
-    parser.add_argument('--downsampled_centroid_pattern', type=str,
-                        default="{species_name}_{hemisphere}_k{k_val}_centroids.npy",
-                        help='Filename pattern for downsampled centroid .npy files from Script 5. '
-                             'Placeholders: {species_name}, {hemisphere}, {k_val}. '
-                             'The script assumes a corresponding _labels.npy file exists.')
-    parser.add_argument('--mask_pattern', type=str, required=True,
-                        help='Filename pattern for temporal lobe masks for ALL species. '
-                             'Placeholders: {species_name}, {hemisphere}.')
-
-    # Algorithm Parameters
+                        help='Comma-separated list of hemisphere labels to process.')
+    
+    # Optional technical/algorithm parameters
     parser.add_argument('--max_gradients', type=int, default=DEFAULT_MAX_GRADIENTS_TO_TEST,
                         help="Maximum number of gradients to compute and test.")
     parser.add_argument('--max_k_knn', type=int, default=DEFAULT_MAX_K_SEARCH_FOR_KNN,
@@ -675,25 +647,51 @@ if __name__ == "__main__":
     parser.add_argument('--default_k_knn', type=int, default=DEFAULT_N_NEIGHBORS_FALLBACK,
                         help="Default k for k-NN if adaptive search fails.")
     parser.add_argument('--min_gain_dim_select', type=float, default=DEFAULT_MIN_GAIN_FOR_DIM_SELECTION,
-                        help="Minimum gain in reconstruction score to select an additional dimension for suggestion.")
+                        help="Minimum gain in reconstruction score to suggest an additional dimension.")
     parser.add_argument('--num_gradients_to_save', type=int, default=DEFAULT_NUM_GRADIENTS_TO_SAVE,
-                        help="Number of top gradients to save in the final .func.gii files and .npz archive. "
-                             "Will save min(this_value, suggested_dims, actual_computed_dims).")
+                        help="Number of top gradients to save in the final output files.")
     
     parsed_args = parser.parse_args()
     
-    # Prepare lists from comma-separated arguments
-    parsed_args.species_for_lle = [s.strip().lower() for s in parsed_args.species_list_for_lle.split(',')]
-    parsed_args.hemispheres_to_process = [h.strip().upper() for h in parsed_args.hemispheres_to_process.split(',')]
-    parsed_args.target_k_species = parsed_args.target_k_species.strip().lower()
+    # Create a namespace/object to hold all arguments for the main function ---
+    # This keeps the main `run_cross_species_lle` function unchanged.
+    class RunArgs:
+        pass
+    args_for_run = RunArgs()
 
+    # --- NEW: Populate arguments by automatically determining paths and patterns ---
+    # Copy over essential and technical args
+    args_for_run.species_list_for_lle = parsed_args.species_list_for_lle
+    args_for_run.target_k_species = parsed_args.target_k_species
+    args_for_run.hemispheres_to_process = parsed_args.hemispheres_to_process
+    args_for_run.max_gradients = parsed_args.max_gradients
+    args_for_run.max_k_knn = parsed_args.max_k_knn
+    args_for_run.default_k_knn = parsed_args.default_k_knn
+    args_for_run.min_gain_dim_select = parsed_args.min_gain_dim_select
+    args_for_run.num_gradients_to_save = parsed_args.num_gradients_to_save
 
-    # Validation
-    if parsed_args.target_k_species not in parsed_args.species_for_lle:
-        print(f"ERROR: target_k_species '{parsed_args.target_k_species}' must be included in --species_list_for_lle.")
+    # Construct paths
+    args_for_run.target_species_bp_dir = os.path.join(parsed_args.project_root, 'results', '2_masked_average_blueprints')
+    args_for_run.other_species_downsampled_dir = os.path.join(parsed_args.project_root, 'results', '5_downsampled_blueprints')
+    args_for_run.mask_dir = os.path.join(parsed_args.project_root, 'data', 'masks')
+    args_for_run.output_dir = os.path.join(parsed_args.project_root, 'results', '6_cross_species_gradients')
+
+    # Define fixed filename patterns
+    args_for_run.target_species_bp_pattern = "average_{species_name}_blueprint.{hemisphere}_temporal_lobe_masked.func.gii"
+    args_for_run.downsampled_centroid_pattern = "{species_name}_{hemisphere}_k{k_val}_centroids.npy"
+    args_for_run.mask_pattern = "{species_name}_{hemisphere}.func.gii"
+
+    # --- Validation logic (same as before, but uses the new args object) ---
+    args_for_run.species_for_lle = [s.strip().lower() for s in args_for_run.species_list_for_lle.split(',')]
+    args_for_run.hemispheres_to_process = [h.strip().upper() for h in args_for_run.hemispheres_to_process.split(',')]
+    args_for_run.target_k_species = args_for_run.target_k_species.strip().lower()
+
+    if args_for_run.target_k_species not in args_for_run.species_for_lle:
+        print(f"ERROR: target_k_species '{args_for_run.target_k_species}' must be included in --species_list_for_lle.")
         exit(1)
-    if not all(h in ['L', 'R'] for h in parsed_args.hemispheres_to_process):
-        print(f"ERROR: --hemispheres_to_process must be a comma-separated list of 'L' and/or 'R'. Got: {parsed_args.hemispheres_to_process}")
+    if not all(h in ['L', 'R'] for h in args_for_run.hemispheres_to_process):
+        print(f"ERROR: --hemispheres_to_process must be a comma-separated list of 'L' and/or 'R'. Got: {args_for_run.hemispheres_to_process}")
         exit(1)
         
-    run_cross_species_lle(parsed_args)
+    # --- Call the main processing function with the fully populated arguments ---
+    run_cross_species_lle(args_for_run)

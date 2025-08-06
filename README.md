@@ -221,25 +221,15 @@ This pipeline processes connectivity blueprints through several stages:
 * **Example Command**:
     ```bash
     python code/6_cross_species_gradients.py \
-        --target_species_bp_dir "results/2_masked_average_blueprints/" \
-        --other_species_downsampled_dir "results/5_downsampled_blueprints/" \
-        --mask_dir "data/masks/" \
-        --output_dir "results/6_cross_species_gradients/" \
         --species_list_for_lle "human,chimpanzee" \
-        --target_k_species "chimpanzee" \
-        --hemispheres_to_process "L,R" \
-        --target_species_bp_pattern "average_{species_name}_blueprint.{hemisphere}_temporal_lobe_masked.func.gii" \
-        --downsampled_centroid_pattern "{species_name}_{hemisphere}_k{k_val}_centroids.npy" \
-        --mask_pattern "{species_name}_{hemisphere}.func.gii" \
-        --num_gradients_to_save 10
+        --target_k_species "chimpanzee"
     ```
 * **Key Arguments**:
-    * `--target_species_bp_dir`: Path to masked blueprints of the species defining `k` (Script 2 output).
-    * `--other_species_downsampled_dir`: Path to downsampled data for other species (Script 5 output).
-    * `--mask_dir`: Path to masks for all species (used for remapping).
-    * `--output_dir`: Base directory for cross-species outputs.
-    * `--species_list_for_lle`: All species to include in the joint embedding.
-    * `--target_k_species`: The reference species.
+    * `--species_list_for_lle`: **(Required)** Comma-separated list of all species to include in the joint analysis.
+    * `--target_k_species`: **(Required)** The species from the list that will provide its original, non-downsampled blueprint as the reference.
+    * `--project_root`: **(Optional)** Path to the project's root directory. Defaults to the current directory (`.`).
+    * `--hemispheres_to_process`: **(Optional)** Comma-separated list of hemispheres to process. Defaults to `"L,R"`.
+    * `--num_gradients_to_save`: **(Optional)** Number of top gradients to save in the final output files. Defaults to `10`.
 
 ### Script 7: Interactive Gradient Visualization (Dash App)
 * **Name**: `7_interactive_analyse_cross_species.py`
