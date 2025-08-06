@@ -252,18 +252,19 @@ This pipeline processes connectivity blueprints through several stages:
 
 ### Script 8: Plot Cross-Species Gradients (Static Scatter Plots)
 * **Name**: `8_plot_cross_species_gradients.py`
-* **Function**: Generates static 2D scatter plots from the cross-species gradient data (`.npz` file) created by Script 6. This is useful for creating publication-quality figures of specific gradient comparisons (e.g., G1 vs G2, G1 vs G3).
+* **Function**: Generates static 2D scatter plots from the cross-species gradient data (`.npz` file) created by Script 6. It automatically finds the correct `.npz` file based on the species used in the Script 6 run. This is useful for creating publication-quality figures of specific gradient comparisons.
 * **Example Command**:
     ```bash
     python code/8_plot_cross_species_gradients.py \
-        --npz_file "results/6_cross_species_gradients/intermediates/human_chimpanzee_CrossSpecies_kRef_chimpanzee/cross_species_embedding_data_human_chimpanzee_CrossSpecies_kRef_chimpanzee.npz" \
-        --output_dir "results/8_static_cross_species_plots/" \
+        --species_list_for_run "human,chimpanzee" \
+        --target_k_species_for_run "chimpanzee" \
         --gradient_pairs "0_1,0_2"
     ```
 * **Key Arguments**:
-    * `--npz_file`: Path to the `.npz` output file from Script 6 containing the cross-species embedding data.
-    * `--output_dir`: Directory where the output `.png` scatter plots will be saved.
-    * `--gradient_pairs`: Comma-separated list of gradient pairs to plot. The indices are 0-based. For example, `"0_1"` plots Gradient 1 vs Gradient 2. `"0_1,0_2,1_2"` would create three separate plots.
+    * `--species_list_for_run`: **(Required)** Comma-separated list of species included in the Script 6 run. **Must be in the same order as the original run.**
+    * `--target_k_species_for_run`: **(Required)** The reference species (`target_k_species`) used in the Script 6 run.
+    * `--gradient_pairs`: **(Optional)** Comma-separated list of 0-indexed gradient pairs to plot (e.g., `"0_1,0_2"`). Defaults to `"0_1"`.
+    * `--project_root`: **(Optional)** Path to the project's root directory. Defaults to the current directory (`.`).
 
 ### Script 9: Plot Consolidated Spider Plots
 * **Name**: `9_plot_consolidated_spider_plots.py`

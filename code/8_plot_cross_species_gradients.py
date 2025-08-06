@@ -158,28 +158,52 @@ def create_gradient_scatter_plots(npz_file_path, plot_output_dir, gradient_pairs
 
     print("\n--- Scatter plot generation complete ---")
 
+
 if __name__ == "__main__":
+    # Simplified Argument Parser ---
     parser = argparse.ArgumentParser(
-        description="Generate scatter plots from cross-species gradient embedding data.",
+        description="Generate scatter plots from a specific run of cross-species gradient embedding.",
         formatter_class=argparse.ArgumentDefaultsHelpFormatter
     )
-    parser.add_argument(
-        '--npz_file', type=str, required=True,
-        help="Path to the .npz file containing cross-species gradient data from script 6."
-    )
-    parser.add_argument(
-        '--output_dir', type=str, required=True,
-        help="Directory where the output scatter plot images will be saved."
-    )
-    parser.add_argument(
-        '--gradient_pairs', type=str,
-        default=','.join([f"{p[0]}_{p[1]}" for p in DEFAULT_GRADIENT_PAIRS_TO_PLOT]),
-        help='Comma-separated list of gradient pairs to plot, e.g., "0_1,0_2,1_2" for G1vG2, G1vG3, G2vG3.'
-    )
+    # Required arguments to identify the specific Script 6 run to plot
+    parser.add_argument('--species_list_for_run', type=str, required=True,
+                        help='Comma-separated list of the species that were included in the cross-species run (e.g., "human,chimpanzee").')
+    parser.add_argument('--target_k_species_for_run', type=str, required=True,
+                        help='The target_k_species that was used as the reference in the cross-species run.')
+
+    # Optional arguments with sensible defaults
+    parser.add_argument('--project_root', type=str, default='.',
+                        help='Path to the project root directory containing data/ and results/.')
+    parser.add_argument('--gradient_pairs', type=str,
+                        default=','.join([f"{p[0]}_{p[1]}" for p in DEFAULT_GRADIENT_PAIRS_TO_PLOT]),
+                        help='Comma-separated list of 0-indexed gradient pairs to plot, e.g., "0_1,0_2,1_2".')
 
     args = parser.parse_args()
 
-    # --- Parse gradient pairs ---
+    # Automatically determine paths based on project structure and run info ---
+    try:
+        # Reconstruct the run identifier string created by Script 6
+        species_list = [s.strip().lower() for s in args.species_list_for_run.split(',')]
+        species_str = "_".join(species_list)
+        target_species_str = args.target_k_species_for_run.strip().lower()
+        run_identifier = f"{species_str}_CrossSpecies_kRef_{target_species_str}"
+
+        # Construct the full path to the input NPZ file
+        npz_filename = f"cross_species_embedding_data_{run_identifier}.npz"
+        npz_file_path = os.path.join(
+            args.project_root, 'results', '6_cross_species_gradients', 
+            'intermediates', run_identifier, npz_filename
+        )
+
+        # Construct the output directory path
+        plot_output_dir = os.path.join(args.project_root, 'results', '8_static_cross_species_plots', run_identifier)
+
+    except Exception as e:
+        print(f"Error constructing paths from species info: {e}")
+        exit(1)
+
+
+    # --- Parse gradient pairs (logic is the same as original script) ---
     parsed_pairs = []
     try:
         pairs_str = args.gradient_pairs.split(',')
@@ -196,8 +220,9 @@ if __name__ == "__main__":
         print("Warning: No valid gradient pairs specified. Nothing to plot.")
         exit(0)
 
+    # --- Call the main plotting function with the constructed paths ---
     create_gradient_scatter_plots(
-        npz_file_path=args.npz_file,
-        plot_output_dir=args.output_dir,
+        npz_file_path=npz_file_path,
+        plot_output_dir=plot_output_dir,
         gradient_pairs_to_plot=parsed_pairs
     )
