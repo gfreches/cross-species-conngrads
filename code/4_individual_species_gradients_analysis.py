@@ -189,35 +189,20 @@ if __name__ == "__main__":
         description="Generate 2D/3D scatter plots of temporal lobe vertices in gradient space.",
         formatter_class=argparse.ArgumentDefaultsHelpFormatter
     )
-    parser.add_argument('--gradient_input_dir', type=str, required=True,
-                        help="Base directory where Script 3 saved its gradient outputs (containing species subfolders).")
-    parser.add_argument('--mask_input_dir', type=str, required=True,
-                        help="Base directory for temporal lobe mask files. Assumes species subfolders.")
-    parser.add_argument('--plot_output_dir', type=str, required=True,
-                        help="Base directory where scatter plots will be saved.")
     parser.add_argument('--species_list', type=str, required=True,
                         help='Comma-separated list of species names to process (e.g., "human,chimpanzee").')
-    
+    parser.add_argument('--project_root', type=str, default='.',
+                        help='Path to the project root directory containing data/ and results/.')
     parser.add_argument('--plot_type', type=str, default="combined", choices=["combined", "individual"],
                         help="Type of gradients to plot: 'combined' across hemispheres, or 'individual' per hemisphere.")
-    parser.add_argument('--gradient_pattern_combined', type=str,
-                        default="all_computed_gradients_{species_name}_COMBINED_{hemisphere}.func.gii",
-                        help='Filename pattern for COMBINED gradient files from Script 3. Placeholders: {species_name}, {hemisphere (L/R part)}.')
-    parser.add_argument('--gradient_pattern_individual', type=str,
-                        default="all_computed_gradients_{species_name}_{hemisphere}_SEPARATE.func.gii",
-                        help='Filename pattern for INDIVIDUAL (separate) gradient files from Script 3. Placeholders: {species_name}, {hemisphere}.')
-    parser.add_argument('--mask_pattern', type=str, required=True,
-                        help='Filename pattern for temporal lobe masks. Placeholders: {species_name}, {hemisphere}.')
-    
     parser.add_argument('--gradients_to_plot', type=str, default="1,2,3",
-                        help='Comma-separated list of 1-indexed gradient numbers to plot (e.g., "1,2" for G1 vs G2; "1,2,3" for G1 vs G2 vs G3). Max 3.')
+                        help='Comma-separated 1-indexed gradient numbers to plot (e.g., "1,2" for G1 vs G2; "1,2,3" for G1 vs G2 vs G3). Max 3.')
     parser.add_argument('--plot_2d_projections', action='store_true',
-                        help='If plotting 3 gradients (either type), also generate 2D projection scatter plots.')
+                        help='If plotting 3 gradients, also generate 2D projection scatter plots.')
 
     args = parser.parse_args()
 
     species_to_process = [s.strip() for s in args.species_list.split(',')]
-    # Standard hemispheres to iterate over when plotting individual types
     hemispheres_for_individual_plots = ['L', 'R'] 
     
     try:
@@ -232,27 +217,31 @@ if __name__ == "__main__":
             print("ERROR: Need at least 2 gradients for scatter plots.")
             exit(1)
     except ValueError as e:
-        print(f"ERROR: Invalid format for --gradients_to_plot. Expected comma-separated positive integers (e.g., '1,2' or '1,2,3'). Details: {e}")
+        print(f"ERROR: Invalid format for --gradients_to_plot. Details: {e}")
         exit(1)
 
     num_dims_to_plot = len(gradient_indices_to_plot)
-    # Determine the maximum gradient index we need to load from files
     num_gradients_to_load_from_file = max(gradient_indices_to_plot) + 1 if gradient_indices_to_plot else 0
 
+    gradient_input_base_dir = os.path.join(args.project_root, 'results', '3_individual_species_gradients')
+    mask_input_base_dir = os.path.join(args.project_root, 'data', 'masks')
+    plot_output_base_dir = os.path.join(args.project_root, 'results', '4_static_gradient_plots')
 
-    if not os.path.exists(args.plot_output_dir):
-        os.makedirs(args.plot_output_dir, exist_ok=True)
+    if not os.path.exists(plot_output_base_dir):
+        os.makedirs(plot_output_base_dir, exist_ok=True)
 
     for species in species_to_process:
         print(f"\n--- Processing scatter plots for {species.capitalize()} (Plot Type: {args.plot_type}) ---")
         
-        species_plot_dir = os.path.join(args.plot_output_dir, species)
+        species_plot_dir = os.path.join(plot_output_base_dir, species)
         if not os.path.exists(species_plot_dir):
             os.makedirs(species_plot_dir, exist_ok=True)
 
-        # These lists will hold the data and metadata for the current plot(s)
-        # For 'combined', they'll get two entries (L & R).
-        # For 'individual', they'll be repopulated for each hemisphere's separate plot.
+        # Define fixed filename patterns
+        mask_pattern = f"{species}_{{hemisphere}}.func.gii"
+        gradient_pattern_individual = f"all_computed_gradients_{species}_{{hemisphere}}_SEPARATE.func.gii"
+        gradient_pattern_combined = f"all_computed_gradients_{species}_COMBINED_{{hemisphere}}.func.gii"
+
         plot_data_list_for_current_figure = [] 
         plot_labels_list_for_current_figure = []
         plot_colors_list_for_current_figure = []
@@ -263,16 +252,15 @@ if __name__ == "__main__":
         if args.plot_type == "combined":
             current_title_prefix = f"Combined Gradient Space - {species.capitalize()}"
             current_filename_infix = f"COMBINED_{species}"
-            active_gradient_pattern = args.gradient_pattern_combined
+            active_gradient_pattern = gradient_pattern_combined
 
-            # Load L and R parts of the combined gradient
             grad_data_L = load_gradient_data_for_hemisphere(
-                args.gradient_input_dir, args.mask_input_dir, species, "L",
-                active_gradient_pattern, args.mask_pattern, num_gradients_to_load_from_file
+                gradient_input_base_dir, mask_input_base_dir, species, "L",
+                active_gradient_pattern, mask_pattern, num_gradients_to_load_from_file
             )
             grad_data_R = load_gradient_data_for_hemisphere(
-                args.gradient_input_dir, args.mask_input_dir, species, "R",
-                active_gradient_pattern, args.mask_pattern, num_gradients_to_load_from_file
+                gradient_input_base_dir, mask_input_base_dir, species, "R",
+                active_gradient_pattern, mask_pattern, num_gradients_to_load_from_file
             )
 
             if grad_data_L is not None and grad_data_R is not None:
@@ -285,33 +273,32 @@ if __name__ == "__main__":
                     plot_colors_list_for_current_figure.append('crimson')
                 except IndexError:
                     print(f"ERROR: Not enough computed gradients for COMBINED {species} to select for plotting.")
-                    plot_data_list_for_current_figure = [] # Clear to prevent plotting
+                    plot_data_list_for_current_figure = []
             else:
                 print(f"Could not load all required gradient data for COMBINED {species}. Skipping.")
             
-            if plot_data_list_for_current_figure: # Proceed to plot if data is ready
+            if plot_data_list_for_current_figure:
                  _generate_plots_for_data(plot_data_list_for_current_figure, 
-                                     plot_labels_list_for_current_figure, 
-                                     plot_colors_list_for_current_figure,
-                                     gradient_indices_to_plot, num_dims_to_plot,
-                                     current_title_prefix, current_filename_infix, 
-                                     species_plot_dir, args.plot_2d_projections)
+                                          plot_labels_list_for_current_figure, 
+                                          plot_colors_list_for_current_figure,
+                                          gradient_indices_to_plot, num_dims_to_plot,
+                                          current_title_prefix, current_filename_infix, 
+                                          species_plot_dir, args.plot_2d_projections)
 
         elif args.plot_type == "individual":
-            active_gradient_pattern = args.gradient_pattern_individual
+            active_gradient_pattern = gradient_pattern_individual
             for hem_to_plot in hemispheres_for_individual_plots: 
                 print(f"  Processing Individual Plot for Hemisphere: {hem_to_plot}")
                 current_title_prefix = f"Individual Gradient Space - {species.capitalize()} - {hem_to_plot} Hemisphere"
                 current_filename_infix = f"INDIVIDUAL_{species}_{hem_to_plot}"
                 
-                # Reset lists for each individual hemisphere plot
                 plot_data_list_for_current_figure = [] 
                 plot_labels_list_for_current_figure = []
                 plot_colors_list_for_current_figure = []
 
                 grad_data_single_hem = load_gradient_data_for_hemisphere(
-                    args.gradient_input_dir, args.mask_input_dir, species, hem_to_plot,
-                    active_gradient_pattern, args.mask_pattern, num_gradients_to_load_from_file
+                    gradient_input_base_dir, mask_input_base_dir, species, hem_to_plot,
+                    active_gradient_pattern, mask_pattern, num_gradients_to_load_from_file
                 )
 
                 if grad_data_single_hem is not None:
@@ -321,17 +308,16 @@ if __name__ == "__main__":
                         plot_colors_list_for_current_figure.append('royalblue' if hem_to_plot == 'L' else 'crimson')
                     except IndexError:
                         print(f"ERROR: Not enough computed gradients for INDIVIDUAL {species} {hem_to_plot} to select for plotting.")
-                        plot_data_list_for_current_figure = [] # Clear to prevent plotting
+                        plot_data_list_for_current_figure = []
                 else:
                     print(f"Could not load gradient data for INDIVIDUAL {species} {hem_to_plot}. Skipping.")
                 
-                if plot_data_list_for_current_figure: # Proceed to plot if data is ready
+                if plot_data_list_for_current_figure:
                     _generate_plots_for_data(plot_data_list_for_current_figure, 
                                              plot_labels_list_for_current_figure, 
                                              plot_colors_list_for_current_figure,
                                              gradient_indices_to_plot, num_dims_to_plot,
                                              current_title_prefix, current_filename_infix, 
                                              species_plot_dir, args.plot_2d_projections)
-            # End of loop for individual hemispheres for the current species
 
     print("\n--- Scatter plot generation complete ---")

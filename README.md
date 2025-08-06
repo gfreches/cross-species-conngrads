@@ -173,26 +173,31 @@ This pipeline processes connectivity blueprints through several stages:
     * `--min_gain_dim_select`: **(Optional)** Minimum gain in score to select an additional gradient. (Default: `0.1`)
  
 ### Script 4: Visualize Individual/Combined Gradients (Static Plots)
-* **Name**: `4_visualize_gradients.py` (or `4_individual_species_gradients_analysis.py`)
-* **Function**: Generates static 2D or 3D scatter plots of temporal lobe vertices in gradient space, using outputs from Script 3. Can plot "individual" hemisphere gradients or "combined" (if Script 3 produces such outputs, or adapt to use outputs of Script 6 for combined visualization).
-* **Example (Plotting Individual Gradients from Script 3):**
-    ```bash
-    python code/4_visualize_gradients.py \
-        --gradient_input_dir "results/3_individual_species_gradients/" \
-        --mask_input_dir "data/masks/" \
-        --plot_output_dir "results/4_static_gradient_plots/" \
-        --species_list "human,chimpanzee" \
-        --mask_pattern "{species_name}_{hemisphere}.func.gii" \
-        --plot_type "individual" \
-        --gradient_pattern_individual "all_computed_gradients_{species_name}_{hemisphere}_SEPARATE.func.gii" \
-        --gradients_to_plot "1,2" 
-    ```
-* **Key Arguments**:
-    * `--gradient_input_dir`: Output directory from Script 3 (or Script 6 if plotting combined cross-species).
-    * `--plot_type`: "individual" or "combined".
-    * `--gradient_pattern_individual` / `--gradient_pattern_combined`: Patterns for gradient files.
-    * `--gradients_to_plot`: Comma-separated 1-indexed gradient numbers (e.g., "1,2").
+* **Name**: `4_individual_species_gradients_analysis.py`
+* **Function**: Generates static 2D or 3D scatter plots of vertices in gradient space, using outputs from Script 3. It automatically finds the required files based on the standard project structure.
+* **Example Usage**:
 
+    **Plot combined gradients (G1 vs G2) for multiple species:**
+    ```bash
+    python code/4_individual_species_gradients_analysis.py --species_list "human,chimpanzee" --gradients_to_plot "1,2"
+    ```
+
+    **Plot individual hemisphere gradients for one species:**
+    ```bash
+    python code/4_individual_species_gradients_analysis.py --species_list "human" --plot_type "individual" --gradients_to_plot "1,2"
+    ```
+
+    **Generate a 3D plot (G1 vs G2 vs G3) and all its 2D projections:**
+    ```bash
+    python code/4_individual_species_gradients_analysis.py --species_list "human" --gradients_to_plot "1,2,3" --plot_2d_projections
+    ```
+
+* **Key Arguments**:
+    * `--species_list`: **(Required)** A comma-separated list of species to process.
+    * `--gradients_to_plot`: **(Optional)** Comma-separated 1-indexed gradient numbers to plot (e.g., `"1,2"` or `"1,2,3"`). Defaults to `"1,2,3"`.
+    * `--plot_type`: **(Optional)** Type of plot to generate. Choices: `combined`, `individual`. Defaults to `combined`.
+    * `--plot_2d_projections`: **(Optional)** When plotting 3 gradients, add this flag to also generate all three corresponding 2D scatter plots.
+    * `--project_root`: **(Optional)** Path to the project's root directory. Defaults to the current directory (`.`).
 ### Script 5: Downsample Blueprints via K-Means
 * **Name**: `5_downsample_blueprints.py`
 * **Function**: Downsamples masked average blueprints (from Script 2) for specified source species using k-means clustering. The number of clusters (`k`) is determined by the temporal lobe vertex count of a specified `target_k_species`. Outputs include centroid profiles (`.npy`), vertex labels (`.npy`), and a visual downsampled blueprint (`.func.gii`).
