@@ -268,26 +268,20 @@ This pipeline processes connectivity blueprints through several stages:
 
 ### Script 9: Plot Consolidated Spider Plots
 * **Name**: `9_plot_consolidated_spider_plots.py`
-* **Function**: For each specified cross-species gradient, this script identifies the vertices (or centroids) that show the minimum and maximum expression of that gradient for each species/hemisphere. It then generates two consolidated spider plots per gradient: one for the max-expressing vertices and one for the min-expressing vertices, overlaying the blueprint profiles from all four species/hemisphere combinations.
+* **Function**: For each specified cross-species gradient, this script identifies the vertices (or centroids) that show the minimum and maximum expression of that gradient for each species/hemisphere. It then generates two consolidated spider plots per gradient: one for the max-expressing vertices and one for the min-expressing vertices. It automatically locates the required data from Scripts 2, 5, and 6.
 * **Example Command**:
     ```bash
     python code/9_plot_consolidated_spider_plots.py \
-        --npz_file "results/6_cross_species_gradients/intermediates/human_chimpanzee_CrossSpecies_kRef_chimpanzee/cross_species_embedding_data_human_chimpanzee_CrossSpecies_kRef_chimpanzee.npz" \
-        --masked_blueprint_dir "results/2_masked_average_blueprints/" \
-        --downsampled_data_dir "results/5_downsampled_blueprints/" \
-        --mask_base_dir "data/masks/" \
-        --output_dir "results/9_consolidated_spider_plots/" \
-        --gradients "0,1" \
-        --target_k_species "chimpanzee"
+        --species_list_for_run "human,chimpanzee" \
+        --target_k_species_for_run "chimpanzee" \
+        --gradients "0,1"
     ```
 * **Key Arguments**:
-    * `--npz_file`: Path to the cross-species `.npz` file from script 6.
-    * `--masked_blueprint_dir`: Directory for masked average blueprints (script 2 output), used to get the blueprint profiles for plotting.
-    * `--downsampled_data_dir`: Directory for downsampled data (script 5 output), needed to map centroids back to original vertices for non-target species.
-    * `--mask_base_dir`: Directory for all species' masks, used to identify original temporal lobe vertices.
-    * `--output_dir`: Directory to save the output spider plot images.
-    * `--gradients`: Comma-separated list of 0-indexed gradients to analyze.
-    * `--target_k_species`: The species that was used as the reference for k-means downsampling (e.g., 'chimpanzee'). This is crucial for correctly locating data for other species.
+    * `--species_list_for_run`: **(Required)** Comma-separated list of species included in the Script 6 run. **Must be in the same order as the original run.**
+    * `--target_k_species_for_run`: **(Required)** The reference species (`target_k_species`) used in the Script 6 run.
+    * `--gradients`: **(Optional)** Comma-separated list of 0-indexed gradients to analyze. Defaults to `"0,1"`.
+    * `--project_root`: **(Optional)** Path to the project's root directory. Defaults to the current directory (`.`).
+    * `--tract_names`: **(Optional)** Comma-separated list of tract names for the spider plot labels.
 
 ### Script 10: Run Permutation Analysis
 * **Name**: `10_run_permutation_analysis.py`

@@ -127,7 +127,7 @@ def create_consolidated_spider_plots(
             if species != target_k_species: # Assumes this is the downsampled species (e.g., human)
                 k_current_hem = k_vals[hem]
                 labels_path = os.path.join(downsampled_data_dir, species, f"{species}_{hem}_k{k_current_hem}_labels.npy")
-                indices_path = os.path.join(downsampled_data_dir, species, f"{species}_{hem}_k{k_current_hem}_original_indices.npy")
+                indices_path = os.path.join(downsampled_data_dir, species, f"{species}_{hem}_k{k_current_hem}_tl_indices.npy")
 
                 if not (os.path.exists(labels_path) and os.path.exists(indices_path)):
                     print(f"ERROR: Missing labels or indices for {species} {hem} (k={k_current_hem}). Skipping."); continue
@@ -196,50 +196,74 @@ def plot_spider(profiles_data, vertex_ids, grad_idx, extreme_type, output_dir, t
     plt.close(fig)
     print(f"  Saved {extreme_type}-extremes spider plot for Gradient {grad_idx+1}: {plot_filename}")
 
+# --- Main Execution Logic ---
 if __name__ == "__main__":
+    # --- NEW: Simplified Argument Parser ---
     parser = argparse.ArgumentParser(
         description="Generate consolidated spider plots for min/max expressing vertices of cross-species gradients.",
         formatter_class=argparse.ArgumentDefaultsHelpFormatter
     )
-    # Input Paths
-    parser.add_argument('--npz_file', type=str, required=True, help="Path to the cross-species .npz file from script 6.")
-    parser.add_argument('--masked_blueprint_dir', type=str, required=True, help="Base directory for masked average blueprints (script 2 output).")
-    parser.add_argument('--downsampled_data_dir', type=str, required=True, help="Base directory for downsampled data (script 5 output).")
-    parser.add_argument('--mask_base_dir', type=str, required=True, help="Base directory for all species' temporal lobe masks.")
-
-    # Output Path
-    parser.add_argument('--output_dir', type=str, required=True, help="Directory to save the output spider plot images.")
-
-    # Configuration
-    parser.add_argument('--species', type=str, default=",".join(DEFAULT_SPECIES_FOR_PLOTS), help="Comma-separated list of species to include.")
-    parser.add_argument('--hemispheres', type=str, default=",".join(DEFAULT_HEMISPHERES), help="Comma-separated list of hemispheres (L,R).")
-    parser.add_argument('--gradients', type=str, default=",".join(map(str, DEFAULT_GRADIENTS_TO_ANALYZE)), help="Comma-separated list of 0-indexed gradients to analyze.")
-    parser.add_argument('--target_k_species', type=str, default='chimpanzee', help="The species that defines 'k' for downsampling.")
-    parser.add_argument('--n_tracts', type=int, default=DEFAULT_N_TRACTS, help="Expected number of tracts in the blueprints.")
-    parser.add_argument('--tract_names', type=str, default=",".join(DEFAULT_TRACT_NAMES), help="Comma-separated list of tract names for plot labels.")
+    # Required arguments to identify the specific Script 6 run to analyze
+    parser.add_argument('--species_list_for_run', type=str, required=True,
+                        help='Comma-separated list of the species that were included in the cross-species run (e.g., "human,chimpanzee").')
+    parser.add_argument('--target_k_species_for_run', type=str, required=True,
+                        help='The target_k_species that was used as the reference in the cross-species run.')
+    
+    # Optional arguments with sensible defaults
+    parser.add_argument('--project_root', type=str, default='.',
+                        help='Path to the project root directory containing data/ and results/.')
+    parser.add_argument('--gradients', type=str, default=",".join(map(str, DEFAULT_GRADIENTS_TO_ANALYZE)),
+                        help="Comma-separated list of 0-indexed gradients to analyze.")
+    parser.add_argument('--n_tracts', type=int, default=DEFAULT_N_TRACTS,
+                        help="Expected number of tracts in the blueprints.")
+    parser.add_argument('--tract_names', type=str, default=",".join(DEFAULT_TRACT_NAMES),
+                        help="Comma-separated list of tract names for plot labels.")
 
     args = parser.parse_args()
 
+    # --- NEW: Automatically determine paths based on project structure and run info ---
+    try:
+        # Reconstruct the run identifier string to find the correct .npz file
+        species_list_for_id = [s.strip().lower() for s in args.species_list_for_run.split(',')]
+        species_str = "_".join(species_list_for_id) # Use the same non-sorted order as Script 6
+        target_species_str = args.target_k_species_for_run.strip().lower()
+        run_identifier = f"{species_str}_CrossSpecies_kRef_{target_species_str}"
+
+        # Construct full paths to all required data directories and the specific .npz file
+        npz_filename = f"cross_species_embedding_data_{run_identifier}.npz"
+        npz_file_path = os.path.join(
+            args.project_root, 'results', '6_cross_species_gradients', 
+            'intermediates', run_identifier, npz_filename
+        )
+        masked_blueprint_dir = os.path.join(args.project_root, 'results', '2_masked_average_blueprints')
+        downsampled_data_dir = os.path.join(args.project_root, 'results', '5_downsampled_blueprints')
+        mask_base_dir = os.path.join(args.project_root, 'data', 'masks')
+        output_dir = os.path.join(args.project_root, 'results', '9_consolidated_spider_plots', run_identifier)
+
+    except Exception as e:
+        print(f"Error constructing paths from species info: {e}")
+        exit(1)
+
     # Process comma-separated string arguments into lists
-    species_to_process = [s.strip().lower() for s in args.species.split(',')]
-    hemispheres_to_process = [h.strip().upper() for h in args.hemispheres.split(',')]
     gradients_to_process = [int(g.strip()) for g in args.gradients.split(',')]
     tract_names_list = [name.strip() for name in args.tract_names.split(',')]
 
     if len(tract_names_list) != args.n_tracts:
         print(f"Error: The number of tract names provided ({len(tract_names_list)}) does not match --n_tracts ({args.n_tracts}).")
         exit(1)
-
+        
+    # The main plotting function is called with the constructed paths.
+    # The list of species and hemispheres to plot are taken directly from the run identifier.
     create_consolidated_spider_plots(
-        npz_file_path=args.npz_file,
-        masked_blueprint_dir=args.masked_blueprint_dir,
-        downsampled_data_dir=args.downsampled_data_dir,
-        mask_base_dir=args.mask_base_dir,
-        output_dir=args.output_dir,
-        species_list=species_to_process,
-        hemispheres=hemispheres_to_process,
+        npz_file_path=npz_file_path,
+        masked_blueprint_dir=masked_blueprint_dir,
+        downsampled_data_dir=downsampled_data_dir,
+        mask_base_dir=mask_base_dir,
+        output_dir=output_dir,
+        species_list=species_list_for_id, # Use the list of species from the run
+        hemispheres=['L', 'R'], # Assume L,R unless specified otherwise
         gradients_to_analyze=gradients_to_process,
         n_tracts=args.n_tracts,
         tract_names=tract_names_list,
-        target_k_species=args.target_k_species.lower()
+        target_k_species=target_species_str
     )
