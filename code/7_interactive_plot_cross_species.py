@@ -618,11 +618,16 @@ def initial_scatter_load(_):
 # ---- MAIN EXECUTION ----
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description="Interactive Dash viewer for cross-species gradient data.")
-    parser.add_argument('--npz_file', type=str, required=True,
-                        help="Path to the .npz file from Script 6 (contains gradients and segment info).")
-    parser.add_argument('--average_bp_dir', type=str, required=True,
-                        help="Base directory for masked average blueprints (Script 2 output), "
-                             "containing species subfolders. Used for spider plots.")
+    
+    # Required arguments to identify the specific Script 6 run
+    parser.add_argument('--species_list_for_run', type=str, required=True,
+                        help='Comma-separated list of the species included in the run (e.g., "human,chimpanzee").')
+    parser.add_argument('--target_k_species_for_run', type=str, required=True,
+                        help='The target_k_species used as the reference in the run.')
+    
+    # Optional arguments with sensible defaults
+    parser.add_argument('--project_root', type=str, default='.',
+                        help='Path to the project root directory containing data/ and results/.')
     parser.add_argument('--n_tracts', type=int, default=DEFAULT_N_TRACTS_EXPECTED,
                         help=f"Expected number of tracts/features. Default: {DEFAULT_N_TRACTS_EXPECTED}.")
     parser.add_argument('--tract_names', type=str, default=",".join(DEFAULT_TRACT_NAMES),
@@ -633,39 +638,53 @@ if __name__ == '__main__':
 
     args = parser.parse_args()
 
-    # --- Populate Global Variables from Args or Defaults ---
-    AVERAGE_BP_DIR_GLOBAL = args.average_bp_dir
+    # Automatically determine paths based on project structure and run info ---
+    try:
+        # Reconstruct the run identifier to find the correct .npz file
+        species_list = [s.strip().lower() for s in args.species_list_for_run.split(',')]
+        species_str = "_".join(species_list) # Use the same non-sorted order as Script 6
+        target_species_str = args.target_k_species_for_run.strip().lower()
+        run_identifier = f"{species_str}_CrossSpecies_kRef_{target_species_str}"
+
+        # Construct full paths to the required input files and directories
+        npz_filename = f"cross_species_embedding_data_{run_identifier}.npz"
+        npz_file_path = os.path.join(
+            args.project_root, 'results', '6_cross_species_gradients', 
+            'intermediates', run_identifier, npz_filename
+        )
+        average_bp_dir_path = os.path.join(args.project_root, 'results', '2_masked_average_blueprints')
+
+    except Exception as e:
+        print(f"Error constructing paths from species info: {e}")
+        exit(1)
+
+    # --- Populate Global Variables from constructed paths and args ---
+    AVERAGE_BP_DIR_GLOBAL = average_bp_dir_path
     N_TRACTS_EXPECTED_GLOBAL = args.n_tracts
     TRACT_NAMES_GLOBAL = [name.strip() for name in args.tract_names.split(',')]
 
     if len(TRACT_NAMES_GLOBAL) != N_TRACTS_EXPECTED_GLOBAL:
         print(f"WARNING: Provided --tract_names count ({len(TRACT_NAMES_GLOBAL)}) "
               f"does not match --n_tracts ({N_TRACTS_EXPECTED_GLOBAL}). Adjusting tract names list.")
+        # Adjust tract names list if there's a mismatch
         if len(TRACT_NAMES_GLOBAL) < N_TRACTS_EXPECTED_GLOBAL:
             TRACT_NAMES_GLOBAL.extend([f"Tract {i+1}" for i in range(len(TRACT_NAMES_GLOBAL), N_TRACTS_EXPECTED_GLOBAL)])
         else:
             TRACT_NAMES_GLOBAL = TRACT_NAMES_GLOBAL[:N_TRACTS_EXPECTED_GLOBAL]
     
-    EMPTY_SPIDER = blank_spider_fig() # Initialize after TRACT_NAMES_GLOBAL is set
+    EMPTY_SPIDER = blank_spider_fig()
     
-    data_load_was_successful = load_data_from_npz(args.npz_file)
+    # Load the main data from the automatically found .npz file
+    data_load_was_successful = load_data_from_npz(npz_file_path)
     
-    # 2. Now, call setup_dynamic_plot_configs with the global df_global,
-    #    which load_data_from_npz should have populated (or left as an empty DataFrame on error).
-    setup_dynamic_plot_configs(df_global, DEFAULT_PLOT_CONFIGS_SCATTER, DEFAULT_SPECIES_SYMBOLS) # Pass df_global
+    # Setup plot configurations based on the loaded data
+    setup_dynamic_plot_configs(df_global, DEFAULT_PLOT_CONFIGS_SCATTER, DEFAULT_SPECIES_SYMBOLS)
 
-    # 3. You can use data_load_was_successful for further conditional logic if needed
-    if not data_load_was_successful:
-        print("CRITICAL: Failed to load essential data from NPZ file during the initial load_data_from_npz call. Application may not function correctly.")
-    elif df_global.empty: # Check the global DataFrame state after loading
-        print("INFO: Data loading function completed, but the resulting DataFrame (df_global) is empty. Plots will reflect no data.")
+    if not data_load_was_successful or df_global.empty:
+        print("WARNING: Failed to load data or data is empty. The application will run but may show no data.")
     
+    # Create and run the Dash app
     app.layout = create_app_layout()
     
     print(f"Attempting to start Dash server on http://{args.host}:{args.port}/")
-    if not df_global.empty:
-        print(f"DataFrame successfully processed with {len(df_global)} points.")
-    else:
-        print("WARNING: DataFrame is empty. Scatter plot will indicate no data. Check NPZ file and paths.")
-        
     app.run(debug=args.debug, host=args.host, port=args.port)
