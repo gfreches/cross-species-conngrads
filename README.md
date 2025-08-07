@@ -332,4 +332,4 @@ The pipeline generates several types of outputs in the specified `results` subdi
 * **Permutation Analysis**: Console output with statistical results and optional `.png` histograms of null distributions (Script 10).
 
 ## Disclaimer
-LLMs such as ChatGPT o3/4o and Gemini 2.5 were use to generate/correct the code in this repository while the authors provided the actual tasks
+LLMs such as ChatGPT o3/4o and Gemini 2.5 were used to generate/correct the code in this repository while the authors provided the actual tasks
