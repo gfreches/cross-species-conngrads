@@ -330,3 +330,6 @@ The pipeline generates several types of outputs in the specified `results` subdi
 * **Cross-Species Scatter Plots**: Static `.png` files showing relationships between different cross-species gradients (Script 8).
 * **Consolidated Spider Plots**: `.png` files showing the blueprint profiles of the vertices that express the minimum and maximum values for each cross-species gradient (Script 9).
 * **Permutation Analysis**: Console output with statistical results and optional `.png` histograms of null distributions (Script 10).
+
+## Disclaimer
+LLMs such as ChatGPT o3/4o and Gemini 2.5 were use to generate/correct the code in this repository while the authors provided the actual tasks
