@@ -1,0 +1,8 @@
+@media (max-width: 1600px) {
+  .main-container {
+    /* This overrides the inline style from Python and forces 
+      the grid into a single column, making the items stack.
+    */
+    grid-template-columns: 1fr;
+  }
+}
