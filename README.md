@@ -242,7 +242,7 @@ This pipeline processes connectivity blueprints through several stages:
 
 ### Script 7: Interactive Gradient Visualization (Dash App)
 * **Name**: `7_interactive_plot_cross_species.py`
-* **Function**: Launches an interactive Dash web application to visualize the cross-species gradients from a specified Script 6 run. It allows clicking on points to see their original connectivity profiles (spider plots) and find closest neighbors. The script automatically finds the required input files.
+* **Function**: Launches an interactive Dash web application to visualize the cross-species gradients from a specified Script 6 run. The dashboard allows for in-depth exploration of the gradient space by allowing users to click on any data point (vertex) to instantly visualize its detailed connectivity profile on a spider plot and its anatomical location on a 3D brain surface rendering. It also includes a tool to find the closest neighbor for any selected point, either within the same species or across to the other species. The script automatically finds the required input files for the gradient data.
 * **Example Command**:
     ```bash
     python code/7_interactive_plot_cross_species.py \
@@ -254,6 +254,7 @@ This pipeline processes connectivity blueprints through several stages:
     * `--species_list_for_run`: **(Required)** Comma-separated list of species included in the Script 6 run. **Must be in the same order as the original run.**
     * `--target_k_species_for_run`: **(Required)** The reference species (`target_k_species`) used in the Script 6 run.
     * `--project_root`: **(Optional)** Path to the project's root directory. (Default: ".")
+    * `--surface_dir`: **(Optional)** Directory with species subfolders containing `.surf.gii` files. (Default: `<project_root>/data/surfaces`)
     * `--n_tracts`: **(Optional)** Expected number of tracts/features. (Default: 20)
     * `--tract_names`: **(Optional)** Comma-separated list of tract names for spider plots. (Default: "AC,AF,AR,CBD,CBP,CBT,CST,FA,FMI,FMA,FX,IFOF,ILF,MDLF,OR,SLF I,SLF II,SLF III,UF,VOF")
     * `--host`: **(Optional)** Host address for the Dash app. (Default: "127.0.0.1")
