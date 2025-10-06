@@ -298,18 +298,36 @@ This pipeline processes connectivity blueprints through several stages:
 
 ### Script 10: Run Permutation Analysis
 * **Name**: `10_run_permutation_analysis.py`
-* **Function**: Performs permutation testing to compare the mean gradient values between different groups (e.g., Human L vs. Human R, Human L vs. Chimp L). It automatically finds the correct input data from the specified Script 6 run, prints the results to the console, and can optionally save histograms of the null distributions.
-* **Example Command**:
+* **Function**: Performs permutation testing to compare mean gradient values between groups. It supports two primary modes:
+    1.  **`cross_species`**: Compares gradients between hemispheres (e.g., Human L vs. R) and across species (e.g., Human L vs. Chimp L) using the output from a **Script 6** run.
+    2.  **`individual`**: Compares gradients between the left and right hemispheres for a single species, using the output from a **Script 3** run.
+    The script prints statistical results to the console and can save histograms of the null distributions. It automatically finds the required input data based on the specified analysis type and parameters.
+* **Example Commands**:
+
+    **1. Cross-Species Analysis (comparing Human vs. Chimpanzee from a Script 6 run for the first 3 gradients):**
     ```bash
     python code/10_run_permutation_analysis.py \
+        --analysis_type "cross_species" \
         --species_list_for_run "human,chimpanzee" \
-        --target_k_species_for_run "chimpanzee"
+        --target_k_species_for_run "chimpanzee" \
+        --num_gradients 3
     ```
+
+    **2. Individual Species Analysis (comparing L vs. R hemisphere for the Human species from a Script 3 run):**
+    ```bash
+    python code/10_run_permutation_analysis.py \
+        --analysis_type "individual" \
+        --species "human" \
+        --num_gradients 3
+    ```
+
 * **Key Arguments**:
-    * `--species_list_for_run`: **(Required)** Comma-separated list of species included in the Script 6 run. **Must be in the same order as the original run.**
-    * `--target_k_species_for_run`: **(Required)** The reference species (`target_k_species`) used in the Script 6 run.
+    * `--analysis_type`: **(Required)** The type of analysis to run. Choices: `cross_species`, `individual`.
+    * `--num_gradients`: **(Optional)** The number of top gradients to analyze (e.g., 3 means G1, G2, G3). (Default: 3)
+    * `--species_list_for_run`: **(Required for `cross_species`)** Comma-separated list of species from the Script 6 run (e.g., "human,chimpanzee").
+    * `--target_k_species_for_run`: **(Required for `cross_species`)** The reference species used in the Script 6 run.
+    * `--species`: **(Required for `individual`)** The species to analyze from the Script 3 run (e.g., "human").
     * `--project_root`: **(Optional)** Path to the project's root directory. (Default: ".")
-    * `--gradient_index`: **(Optional)** The 0-indexed gradient to analyze. (Default: 0)
     * `--n_permutations`: **(Optional)** The number of permutations to run for the test. (Default: 10000)
     * `--alpha`: **(Optional)** The significance level for the test. (Default: 0.01)
     * `--no_histograms`: **(Optional)** A flag to disable saving histogram plots of the null distributions. (Default: False, meaning histograms are generated)

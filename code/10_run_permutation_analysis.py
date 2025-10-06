@@ -4,12 +4,9 @@ import numpy as np
 import matplotlib.pyplot as plt
 import nibabel as nib
 
-# --- Default Configuration ---
 DEFAULT_N_PERMUTATIONS = 10000
 DEFAULT_ALPHA_LEVEL = 0.01
 DEFAULT_NUM_GRADIENTS = 3
-
-# --- Helper Functions ---
 
 def permutation_test_mean_difference(sample1, sample2, n_permutations, alternative='two-sided'):
     if sample1 is None or sample2 is None or sample1.size < 2 or sample2.size < 2:
@@ -127,14 +124,11 @@ if __name__ == "__main__":
     parser.add_argument('--analysis_type', type=str, required=True, choices=['cross_species', 'individual'])
     parser.add_argument('--num_gradients', type=int, default=DEFAULT_NUM_GRADIENTS, help="Number of top gradients to analyze.")
     
-    # Args for cross_species
     parser.add_argument('--species_list_for_run', type=str, help='(For cross_species) e.g., "human,chimpanzee"')
     parser.add_argument('--target_k_species_for_run', type=str, help='(For cross_species) The reference species.')
     
-    # Args for individual
     parser.add_argument('--species', type=str, help='(For individual) Species to analyze (e.g., "human").')
 
-    # Common optional args
     parser.add_argument('--project_root', type=str, default='.')
     parser.add_argument('--n_permutations', type=int, default=DEFAULT_N_PERMUTATIONS)
     parser.add_argument('--alpha', type=float, default=DEFAULT_ALPHA_LEVEL)
@@ -157,4 +151,3 @@ if __name__ == "__main__":
         args.output_dir = os.path.join(args.project_root, 'results', '10_permutation_analysis', f'individual_{args.species}')
 
     main(args)
-    print("\n--- Permutation testing script finished ---")
