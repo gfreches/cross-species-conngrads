@@ -60,7 +60,7 @@ your_project_root/
 │   │           └── <blueprint_filename>                 # e.g., BP.L.dscalar.nii
 │   └── masks/                        # Temporal lobe (or other ROI) masks
 │       └── <species_name>/
-│           └── <species_name>_.func.gii # e.g., human_L.func.gii
+│           └── <species_name>_{hemisphere}.func.gii # e.g., human_L.func.gii (mask per hemisphere)
 ├── results/                        # Main output directory for the pipeline
 │   ├── 1_average_blueprints/
 │   │   └── <species_name>/         # Output of Script 1
