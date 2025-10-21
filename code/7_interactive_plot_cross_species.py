@@ -157,7 +157,7 @@ def make_surface_plot(species, hemisphere, highlight_vtx_id=None, title="Surface
         return go.Figure(layout={"title_text": f"Surface not found for {species} {hemisphere}", "height": 350})
 
     fig = go.Figure()
-    # Remap axes for a standard neuroimaging orientation (horizontal brain)
+    # Plot the surface mesh using the vertices' native coordinate system
     fig.add_trace(go.Mesh3d(
         x=vertices[:, 0], y=vertices[:, 1], z=vertices[:, 2],
         i=faces[:, 0], j=faces[:, 1], k=faces[:, 2],
