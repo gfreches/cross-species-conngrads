@@ -16,7 +16,6 @@ You can also find an online version of the 2-D interactive plot of this work in 
     * [Script 6: Compute Cross-Species Gradients](#script-6-compute-cross-species-gradients)
     * [Script 7: Interactive Gradient Visualization (Dash App)](#script-7-interactive-plot-cross-species)
     * [Script 8: Plot Cross-Species Gradients (Static Scatter Plots)](#script-8-plot-cross-species-gradients-static-scatter-plots)
-    * [Script 9: Plot Consolidated Spider Plots](#script-9-plot-consolidated-spider-plots)
     * [Script 10: Run Permutation Analysis](#script-10-run-permutation-analysis)
 
 5.  [Outputs](#outputs)
@@ -78,7 +77,6 @@ your_project_root/
 │       └── <species_name>/         # Remapped cross-species gradients per species
 │           └── cross_species_gradients_remapped/
 │   ├── 8_static_cross_species_plots/ # Output of Script 8
-│   ├── 9_consolidated_spider_plots/  # Output of Script 9
 │   └── 10_permutation_analysis/      # Output of Script 10
 └── code/                        # Where your Python scripts (1-10) reside
 ├── 1_average_blueprints.py
@@ -89,7 +87,6 @@ your_project_root/
 ├── 6_cross_species_gradients.py
 ├── 7_interactive_plot_cross_species.py
 ├── 8_plot_cross_species_gradients.py
-├── 9_plot_consolidated_spider_plots.py
 └── 10_run_permutation_analysis.py
 
 ```
@@ -278,24 +275,6 @@ This pipeline processes connectivity blueprints through several stages:
     * `--project_root`: **(Optional)** Path to the project's root directory. (Default: ".")
     * `--gradient_pairs`: **(Optional)** Comma-separated list of 0-indexed gradient pairs to plot (e.g., "0_1,0_2"). (Default: "0_1")
 
-### Script 9: Plot Consolidated Spider Plots
-* **Name**: `9_plot_consolidated_spider_plots.py`
-* **Function**: For each specified cross-species gradient, this script identifies the vertices (or centroids) that show the minimum and maximum expression of that gradient for each species/hemisphere. It then generates two consolidated spider plots per gradient: one for the max-expressing vertices and one for the min-expressing vertices. It automatically locates the required data from Scripts 2, 5, and 6.
-* **Example Command**:
-    ```bash
-    python code/9_plot_consolidated_spider_plots.py \
-        --species_list_for_run "human,chimpanzee" \
-        --target_k_species_for_run "chimpanzee" \
-        --gradients "0,1"
-    ```
-* **Key Arguments**:
-    * `--species_list_for_run`: **(Required)** Comma-separated list of species included in the Script 6 run. **Must be in the same order as the original run.**
-    * `--target_k_species_for_run`: **(Required)** The reference species (`target_k_species`) used in the Script 6 run.
-    * `--project_root`: **(Optional)** Path to the project's root directory. (Default: ".")
-    * `--gradients`: **(Optional)** Comma-separated list of 0-indexed gradients to analyze. (Default: "0,1")
-    * `--n_tracts`: **(Optional)** Expected number of tracts in the blueprints. (Default: 20)
-    * `--tract_names`: **(Optional)** Comma-separated list of tract names for the spider plot labels. (Default: "AC,AF,AR,CBD,CBP,CBT,CST,FA,FMI,FMA,FX,IFOF,ILF,MDLF,OR,SLF I,SLF II,SLF III,UF,VOF")
-
 ### Script 10: Run Permutation Analysis
 * **Name**: `10_run_permutation_analysis.py`
 * **Function**: Performs permutation testing to compare mean gradient values between groups. It supports two primary modes:
@@ -347,7 +326,6 @@ The pipeline generates several types of outputs in the specified `results` subdi
     * Intermediate `.npy` files and dimensionality evaluation plots (Script 6).
 * **Interactive Visualization**: A web application (Script 7).
 * **Cross-Species Scatter Plots**: Static `.png` files showing relationships between different cross-species gradients (Script 8).
-* **Consolidated Spider Plots**: `.png` files showing the blueprint profiles of the vertices that express the minimum and maximum values for each cross-species gradient (Script 9).
 * **Permutation Analysis**: Console output with statistical results and optional `.png` histograms of null distributions (Script 10).
 
 ## Disclaimer
