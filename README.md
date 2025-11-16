@@ -16,7 +16,7 @@ You can also find an online version of the 2-D interactive plot of this work in 
     * [Script 6: Compute Cross-Species Gradients](#script-6-compute-cross-species-gradients)
     * [Script 7: Interactive Gradient Visualization (Dash App)](#script-7-interactive-plot-cross-species)
     * [Script 8: Plot Cross-Species Gradients (Static Scatter Plots)](#script-8-plot-cross-species-gradients-static-scatter-plots)
-    * [Script 10: Run Permutation Analysis](#script-10-run-permutation-analysis)
+    * [Script 9: Run Permutation Analysis](#script-9-run-permutation-analysis)
 
 5.  [Outputs](#outputs)
 
@@ -77,8 +77,8 @@ your_project_root/
 │       └── <species_name>/         # Remapped cross-species gradients per species
 │           └── cross_species_gradients_remapped/
 │   ├── 8_static_cross_species_plots/ # Output of Script 8
-│   └── 10_permutation_analysis/      # Output of Script 10
-└── code/                        # Where your Python scripts (1-10) reside
+│   └── 9_permutation_analysis/      # Output of Script 9
+└── code/                        # Where your Python scripts (1-9) reside
 ├── 1_average_blueprints.py
 ├── 2_mask_blueprints.py
 ├── 3_individual_species_gradients.py
@@ -87,7 +87,7 @@ your_project_root/
 ├── 6_cross_species_gradients.py
 ├── 7_interactive_plot_cross_species.py
 ├── 8_plot_cross_species_gradients.py
-└── 10_run_permutation_analysis.py
+└── 9_run_permutation_analysis.py
 
 ```
 
@@ -276,7 +276,7 @@ This pipeline processes connectivity blueprints through several stages:
     * `--gradient_pairs`: **(Optional)** Comma-separated list of 0-indexed gradient pairs to plot (e.g., "0_1,0_2"). (Default: "0_1")
 
 ### Script 10: Run Permutation Analysis
-* **Name**: `10_run_permutation_analysis.py`
+* **Name**: `9_run_permutation_analysis.py`
 * **Function**: Performs permutation testing to compare mean gradient values between groups. It supports two primary modes:
     1.  **`cross_species`**: Compares gradients between hemispheres (e.g., Human L vs. R) and across species (e.g., Human L vs. Chimp L) using the output from a **Script 6** run.
     2.  **`individual`**: Compares gradients between the left and right hemispheres for a single species, using the output from a **Script 3** run.
@@ -285,7 +285,7 @@ This pipeline processes connectivity blueprints through several stages:
 
     **1. Cross-Species Analysis (comparing Human vs. Chimpanzee from a Script 6 run for the first 3 gradients):**
     ```bash
-    python code/10_run_permutation_analysis.py \
+    python code/9_run_permutation_analysis.py \
         --analysis_type "cross_species" \
         --species_list_for_run "human,chimpanzee" \
         --target_k_species_for_run "chimpanzee" \
@@ -294,7 +294,7 @@ This pipeline processes connectivity blueprints through several stages:
 
     **2. Individual Species Analysis (comparing L vs. R hemisphere for the Human species from a Script 3 run):**
     ```bash
-    python code/10_run_permutation_analysis.py \
+    python code/9_run_permutation_analysis.py \
         --analysis_type "individual" \
         --species "human" \
         --num_gradients 3
@@ -326,7 +326,7 @@ The pipeline generates several types of outputs in the specified `results` subdi
     * Intermediate `.npy` files and dimensionality evaluation plots (Script 6).
 * **Interactive Visualization**: A web application (Script 7).
 * **Cross-Species Scatter Plots**: Static `.png` files showing relationships between different cross-species gradients (Script 8).
-* **Permutation Analysis**: Console output with statistical results and optional `.png` histograms of null distributions (Script 10).
+* **Permutation Analysis**: Console output with statistical results and optional `.png` histograms of null distributions (Script 9).
 
 ## Disclaimer
 LLMs such as ChatGPT o3/4o and Gemini 2.5 were used to generate/correct the code in this repository while the authors provided the actual tasks
