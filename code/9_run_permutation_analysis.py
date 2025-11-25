@@ -143,11 +143,11 @@ if __name__ == "__main__":
         run_id = f"{'_'.join(args.species_list_for_run.split(','))}_CrossSpecies_kRef_{args.target_k_species_for_run}"
         interm_dir = os.path.join(args.project_root, 'results', '6_cross_species_gradients', 'intermediates', run_id)
         args.npz_file = os.path.join(interm_dir, f'cross_species_embedding_data_{run_id}.npz')
-        args.output_dir = os.path.join(args.project_root, 'results', '10_permutation_analysis', run_id)
+        args.output_dir = os.path.join(args.project_root, 'results', '9_permutation_analysis', run_id)
     
     elif args.analysis_type == 'individual':
         if not args.species:
             parser.error("--species is required for --analysis_type individual.")
-        args.output_dir = os.path.join(args.project_root, 'results', '10_permutation_analysis', f'individual_{args.species}')
+        args.output_dir = os.path.join(args.project_root, 'results', '9_permutation_analysis', f'individual_{args.species}')
 
     main(args)
