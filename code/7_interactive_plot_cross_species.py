@@ -891,20 +891,24 @@ def update_tab1_surfaces(dataset_value, grad_idx, colorscale):
         if gdata is not None and grad_idx < gdata.shape[1]:
             vals_by_hem[hem] = gdata[:, grad_idx]
 
-    # Shared colour range across both hemispheres (actual data min/max)
-    all_roi_vals = []
-    for hem, v in vals_by_hem.items():
-        m = load_mask(species, hem)
-        if m is None:
-            m = (v != 0.0) & np.isfinite(v)
-        finite = np.isfinite(v)
-        all_roi_vals.append(v[m & finite])
-    all_roi = np.concatenate(all_roi_vals) if all_roi_vals else np.array([])
-    if all_roi.size > 0:
-        shared_min = float(all_roi.min())
-        shared_max = float(all_roi.max())
-    else:
-        shared_min, shared_max = -1.0, 1.0
+    # For "combined" analysis the hemispheres share one colour range;
+    # for "separate" analysis each hemisphere was computed independently
+    # and gets its own colour bar with its own range.
+    use_shared_range = (analysis_type == "combined")
+
+    if use_shared_range:
+        all_roi_vals = []
+        for hem, v in vals_by_hem.items():
+            m = load_mask(species, hem)
+            if m is None:
+                m = (v != 0.0) & np.isfinite(v)
+            all_roi_vals.append(v[m & np.isfinite(v)])
+        all_roi = np.concatenate(all_roi_vals) if all_roi_vals else np.array([])
+        if all_roi.size > 0:
+            shared_min = float(all_roi.min())
+            shared_max = float(all_roi.max())
+        else:
+            shared_min, shared_max = -1.0, 1.0
 
     figs = []
     for hem in ("L", "R"):
@@ -913,8 +917,9 @@ def update_tab1_surfaces(dataset_value, grad_idx, colorscale):
             fig = make_surface_with_gradient(
                 species, hem, vals_by_hem[hem], title,
                 colorscale=colorscale,
-                cmin=shared_min, cmax=shared_max,
-                show_colorbar=(hem == "R"), height=500,
+                cmin=shared_min if use_shared_range else None,
+                cmax=shared_max if use_shared_range else None,
+                show_colorbar=True, height=500,
             )
         else:
             fig = _empty_fig(f"No data: {species} {hem} ({analysis_type})", 500)
