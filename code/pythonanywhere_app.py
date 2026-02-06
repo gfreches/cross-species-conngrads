@@ -1040,6 +1040,18 @@ def create_app_layout():
             dcc.Tab(label="Interactive Explorer",     value="tab-3",
                     children=[create_tab3_layout()]),
         ]),
+        html.Footer(
+            html.A(
+                "GitHub: gfreches/cross-species-conngrads",
+                href="https://github.com/gfreches/cross-species-conngrads",
+                target="_blank",
+            ),
+            style={
+                "textAlign": "center", "padding": "20px 16px",
+                "marginTop": "24px", "borderTop": "1px solid #ddd",
+                "color": "#666", "fontSize": "14px",
+            },
+        ),
     ])
 
 
