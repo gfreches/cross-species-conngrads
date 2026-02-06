@@ -79,15 +79,15 @@ your_project_root/
 │   ├── 8_static_cross_species_plots/ # Output of Script 8
 │   └── 9_permutation_analysis/      # Output of Script 9
 └── code/                        # Where your Python scripts (1-9) reside
-├── 1_average_blueprints.py
-├── 2_mask_blueprints.py
-├── 3_individual_species_gradients.py
-├── 4_individual_species_gradients_analysis.py
-├── 5_downsample_blueprints_knn.py
-├── 6_cross_species_gradients.py
-├── 7_interactive_plot_cross_species.py
-├── 8_plot_cross_species_gradients.py
-└── 9_run_permutation_analysis.py
+    ├── 1_average_blueprints.py
+    ├── 2_mask_blueprints.py
+    ├── 3_individual_species_gradients.py
+    ├── 4_individual_species_gradients_analysis.py
+    ├── 5_downsample_blueprints_knn.py
+    ├── 6_create_cross_species_gradients.py
+    ├── 7_interactive_plot_cross_species.py
+    ├── 8_plot_cross_species_gradients.py
+    └── 9_run_permutation_analysis.py
 
 ```
 
@@ -218,11 +218,11 @@ This pipeline processes connectivity blueprints through several stages:
     * `--n_tracts_expected`: **(Optional)** Expected number of features/tracts in the blueprint data. (Default: 20)
 
 ### Script 6: Compute Cross-Species Gradients
-* **Name**: `6_cross_species_gradients.py`
+* **Name**: `6_create_cross_species_gradients.py`
 * **Function**: Performs a joint spectral embedding using a combination of data: original masked blueprints for the `target_k_species` (e.g., chimpanzee, from Script 2) and downsampled centroid profiles for other species (e.g., human, from Script 5). Outputs remapped cross-species gradients as `.func.gii` for each species and an `.npz` archive with detailed embedding information.
 * **Example Command**:
     ```bash
-    python code/6_cross_species_gradients.py \
+    python code/6_create_cross_species_gradients.py \
         --species_list_for_lle "human,chimpanzee" \
         --target_k_species "chimpanzee"
     ```
@@ -275,7 +275,7 @@ This pipeline processes connectivity blueprints through several stages:
     * `--project_root`: **(Optional)** Path to the project's root directory. (Default: ".")
     * `--gradient_pairs`: **(Optional)** Comma-separated list of 0-indexed gradient pairs to plot (e.g., "0_1,0_2"). (Default: "0_1")
 
-### Script 10: Run Permutation Analysis
+### Script 9: Run Permutation Analysis
 * **Name**: `9_run_permutation_analysis.py`
 * **Function**: Performs permutation testing to compare mean gradient values between groups. It supports two primary modes:
     1.  **`cross_species`**: Compares gradients between hemispheres (e.g., Human L vs. R) and across species (e.g., Human L vs. Chimp L) using the output from a **Script 6** run.
