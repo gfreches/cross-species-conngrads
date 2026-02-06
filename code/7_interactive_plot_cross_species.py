@@ -30,7 +30,6 @@ import nibabel as nib
 import dash
 from dash import dcc, html, Input, Output, State, callback_context
 import plotly.graph_objects as go
-import plotly.colors as pcolors
 from plotly.subplots import make_subplots
 from flask import Flask
 from sklearn.metrics.pairwise import euclidean_distances
@@ -75,7 +74,6 @@ MASK_DIR_GLOBAL = ""
 
 SURFACE_DATA_CACHE = {}
 MASK_CACHE = {}
-COLORSCALE_LUT_CACHE = {}   # colorscale name -> (256, 3) uint8 array
 BLUEPRINT_CACHE = {}         # (species, hem) -> ndarray (vertices, tracts)
 
 # Tab 1 – individual gradients
@@ -340,39 +338,6 @@ def _empty_fig(msg="", height=450):
     return go.Figure(layout={"title_text": msg, "height": height})
 
 
-def _get_colorscale_lut(colorscale):
-    """Return a cached (256, 3) uint8 LUT for the given Plotly colorscale."""
-    if colorscale not in COLORSCALE_LUT_CACHE:
-        samples = pcolors.sample_colorscale(colorscale, np.linspace(0, 1, 256).tolist())
-        COLORSCALE_LUT_CACHE[colorscale] = np.array(
-            [[int(c) for c in s[4:-1].split(",")] for s in samples],
-            dtype=np.uint8,
-        )
-    return COLORSCALE_LUT_CACHE[colorscale]
-
-
-def _gradient_to_vertexcolor(gradient_values, mask, colorscale, cmin, cmax):
-    """Map gradient values to per-vertex RGB lists for Plotly vertexcolor.
-
-    Masked (TL) vertices are coloured via *colorscale*; non-TL vertices are
-    set to light grey.  Returns a nested Python list [[r,g,b], ...].
-    """
-    # Sanitise: NaN / Inf would produce garbage LUT indices
-    safe_vals = np.nan_to_num(gradient_values, nan=0.0, posinf=0.0, neginf=0.0)
-
-    span = cmax - cmin if cmax != cmin else 1.0
-    norm = np.clip((safe_vals - cmin) / span, 0.0, 1.0)
-
-    lut = _get_colorscale_lut(colorscale)
-    idx = (norm * 255).astype(np.intp)
-    vtx_rgb = lut[idx]  # (n, 3) uint8
-
-    if mask is not None:
-        vtx_rgb[~mask] = [211, 211, 211]
-
-    return vtx_rgb.tolist()
-
-
 def make_surface_with_gradient(
     species, hemisphere, gradient_values, title="",
     colorscale="RdBu_r", cmin=None, cmax=None,
@@ -380,8 +345,10 @@ def make_surface_with_gradient(
 ):
     """3D brain surface coloured by per-vertex gradient values.
 
-    Renders the TL and non-TL regions as separate Mesh3d traces so that
-    Plotly never interpolates colours across the boundary.
+    The TL and non-TL regions are rendered as separate Mesh3d traces with
+    independent, re-indexed vertex arrays so they share no geometry.  The TL
+    trace uses ``intensity`` / ``intensitymode="vertex"`` for GPU-level
+    colorscale interpolation, avoiding RGB-space blotches at region boundaries.
     """
     vertices, faces = load_surface(species, hemisphere)
     if vertices is None:
@@ -413,43 +380,44 @@ def make_surface_with_gradient(
     tl_faces = faces[tl_face_mask]
     non_tl_faces = faces[~tl_face_mask]
 
-    # Gradient colours only for TL vertices (via vertexcolor)
-    vertex_colors = _gradient_to_vertexcolor(gradient_values, None, colorscale, cmin, cmax)
+    # Sanitise gradient values (NaN / Inf would break intensity mapping)
+    safe_grad = np.nan_to_num(gradient_values, nan=0.0, posinf=0.0, neginf=0.0)
 
     fig = go.Figure()
 
-    # Non-TL faces: plain grey (separate trace → no interpolation across boundary)
+    # Non-TL faces: re-indexed into their own vertex array (plain grey)
     if len(non_tl_faces) > 0:
+        ntl_uv = np.unique(non_tl_faces)
+        ntl_remap = np.empty(len(vertices), dtype=np.intp)
+        ntl_remap[ntl_uv] = np.arange(len(ntl_uv))
         fig.add_trace(go.Mesh3d(
-            x=vertices[:, 0], y=vertices[:, 1], z=vertices[:, 2],
-            i=non_tl_faces[:, 0], j=non_tl_faces[:, 1], k=non_tl_faces[:, 2],
+            x=vertices[ntl_uv, 0], y=vertices[ntl_uv, 1], z=vertices[ntl_uv, 2],
+            i=ntl_remap[non_tl_faces[:, 0]],
+            j=ntl_remap[non_tl_faces[:, 1]],
+            k=ntl_remap[non_tl_faces[:, 2]],
             color="rgb(211,211,211)", opacity=1.0,
             hoverinfo="none",
             lighting=_lighting, lightposition=_lightpos,
         ))
 
-    # TL faces: gradient-coloured via vertexcolor
+    # TL faces: re-indexed into their own vertex array, GPU colorscale via intensity
     if len(tl_faces) > 0:
+        tl_uv = np.unique(tl_faces)
+        tl_remap = np.empty(len(vertices), dtype=np.intp)
+        tl_remap[tl_uv] = np.arange(len(tl_uv))
         fig.add_trace(go.Mesh3d(
-            x=vertices[:, 0], y=vertices[:, 1], z=vertices[:, 2],
-            i=tl_faces[:, 0], j=tl_faces[:, 1], k=tl_faces[:, 2],
-            vertexcolor=vertex_colors,
+            x=vertices[tl_uv, 0], y=vertices[tl_uv, 1], z=vertices[tl_uv, 2],
+            i=tl_remap[tl_faces[:, 0]],
+            j=tl_remap[tl_faces[:, 1]],
+            k=tl_remap[tl_faces[:, 2]],
+            intensity=safe_grad[tl_uv],
+            intensitymode="vertex",
+            colorscale=colorscale, cmin=cmin, cmax=cmax,
+            showscale=show_colorbar,
+            colorbar=dict(title="Value", len=0.6) if show_colorbar else None,
             opacity=1.0,
             hoverinfo="none",
             lighting=_lighting, lightposition=_lightpos,
-        ))
-
-    # Invisible point on the brain surface to carry the colorbar
-    if show_colorbar:
-        cx, cy, cz = vertices.mean(axis=0)
-        fig.add_trace(go.Scatter3d(
-            x=[cx], y=[cy], z=[cz], mode="markers",
-            marker=dict(
-                size=0.001, color=[0], colorscale=colorscale,
-                cmin=cmin, cmax=cmax, showscale=True,
-                colorbar=dict(title="Value", len=0.6),
-            ),
-            hoverinfo="skip", showlegend=False,
         ))
 
     eye = dict(x=-1.7, y=0, z=0) if hemisphere.upper() == "L" else dict(x=1.7, y=0, z=0)
@@ -710,8 +678,8 @@ def create_tab1_layout():
         }),
         # Surface plots (L and R side-by-side)
         html.Div([
-            dcc.Graph(id="tab1-surface-L", style={"flex": "1"}),
-            dcc.Graph(id="tab1-surface-R", style={"flex": "1"}),
+            dcc.Graph(id="tab1-surface-L", style={"flex": "1"}, config={"scrollZoom": False}),
+            dcc.Graph(id="tab1-surface-R", style={"flex": "1"}, config={"scrollZoom": False}),
         ], style={"display": "flex", "gap": "10px"}),
     ])
 
@@ -801,14 +769,14 @@ def create_tab3_layout():
         # Main grid: scatter on left, detail panels on right
         html.Div([
             # Left column – scatter plot
-            dcc.Graph(id="scatter-g", figure=make_scatter(default_x, default_y)),
+            dcc.Graph(id="scatter-g", figure=make_scatter(default_x, default_y), config={"scrollZoom": False}),
             # Right column – clicked point + neighbour details
             html.Div([
                 html.Div([
                     html.H4("Clicked Point", style={"margin": "0 0 4px 0"}),
                     html.Div([
-                        dcc.Graph(id="clicked-spider", figure=EMPTY_SPIDER, style={"width": "48%"}),
-                        dcc.Graph(id="clicked-surface", figure=EMPTY_SURFACE_FIG, style={"width": "48%"}),
+                        dcc.Graph(id="clicked-spider", figure=EMPTY_SPIDER, style={"width": "48%"}, config={"scrollZoom": False}),
+                        dcc.Graph(id="clicked-surface", figure=EMPTY_SURFACE_FIG, style={"width": "48%"}, config={"scrollZoom": False}),
                     ], style={"display": "flex", "justifyContent": "space-between"}),
                 ]),
                 # Distance / match mode controls
@@ -843,8 +811,8 @@ def create_tab3_layout():
                 html.Div([
                     html.H4("Closest Neighbor", style={"margin": "0 0 4px 0"}),
                     html.Div([
-                        dcc.Graph(id="closest-spider", figure=EMPTY_SPIDER, style={"width": "48%"}),
-                        dcc.Graph(id="closest-surface", figure=EMPTY_SURFACE_FIG, style={"width": "48%"}),
+                        dcc.Graph(id="closest-spider", figure=EMPTY_SPIDER, style={"width": "48%"}, config={"scrollZoom": False}),
+                        dcc.Graph(id="closest-surface", figure=EMPTY_SURFACE_FIG, style={"width": "48%"}, config={"scrollZoom": False}),
                     ], style={"display": "flex", "justifyContent": "space-between"}),
                 ]),
             ], style={"display": "flex", "flexDirection": "column", "gap": "12px"}),
@@ -1000,7 +968,7 @@ def update_tab2_surfaces(grad_idx, colorscale):
                 )
             else:
                 fig = _empty_fig(f"No data: {species} {hem}", 450)
-            hem_graphs.append(dcc.Graph(figure=fig, style={"flex": "1"}))
+            hem_graphs.append(dcc.Graph(figure=fig, style={"flex": "1"}, config={"scrollZoom": False}))
 
         species_blocks.append(html.Div([
             html.H4(
