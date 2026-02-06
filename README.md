@@ -18,7 +18,8 @@ You can also find an online version of the 2-D interactive plot of this work in 
     * [Script 8: Plot Cross-Species Gradients (Static Scatter Plots)](#script-8-plot-cross-species-gradients-static-scatter-plots)
     * [Script 9: Run Permutation Analysis](#script-9-run-permutation-analysis)
 
-5.  [Outputs](#outputs)
+5.  [PythonAnywhere Deployment](#pythonanywhere-deployment)
+6.  [Outputs](#outputs)
 
 ## Prerequisites
 
@@ -326,6 +327,51 @@ This pipeline processes connectivity blueprints through several stages:
     * `--n_permutations`: **(Optional)** The number of permutations to run for the test. (Default: 10000)
     * `--alpha`: **(Optional)** The significance level for the test. (Default: 0.01)
     * `--no_histograms`: **(Optional)** A flag to disable saving histogram plots of the null distributions. (Default: False, meaning histograms are generated)
+
+## PythonAnywhere Deployment
+
+The interactive Dash application (Script 7) is also available as a hosted web app via **PythonAnywhere** at:
+
+> **https://gfreches.pythonanywhere.com/**
+
+The deployment uses `code/pythonanywhere_app.py`, a self-contained adaptation of Script 7 designed for WSGI hosting. It supports the same three tabs (Individual Gradients, Cross-Species Gradients, and Interactive Explorer) but is configured for PythonAnywhere's directory layout.
+
+### PythonAnywhere directory structure
+
+On PythonAnywhere, data files are organized under `/home/gfreches/cross_species_conn_grads/data/` in a flatter layout than the local `results/`-based structure:
+
+```
+data/
+├── surfaces/                              # Brain surface meshes (same as local)
+│   ├── human/
+│   └── chimpanzee/
+├── gradient_outputs/                      # All gradient files in one flat directory
+│   ├── all_computed_gradients_*_.func.gii # Individual species gradients (Script 3)
+│   ├── *_from_cs_gradients_k_*.func.gii  # Cross-species gradient maps (Script 6)
+│   └── cross_species_embedding_data_*.npz # Cross-species embedding (Script 6)
+├── temporal_lobe_average_blueprints/      # Average blueprints for spider plots
+│   ├── human/
+│   │   ├── average_human_blueprint_L_temporal_lobe.func.gii
+│   │   └── average_human_blueprint_R_temporal_lobe.func.gii
+│   └── chimpanzee/
+│       ├── average_chimpanzee_blueprint_L_temporal_lobe.func.gii
+│       └── average_chimpanzee_blueprint_R_temporal_lobe.func.gii
+└── downsampled_temporal_lobe_blueprints/
+```
+
+### Deploying to PythonAnywhere
+
+1.  Upload the data files to the directory structure shown above.
+2.  Edit the `PA_*` configuration constants at the top of `code/pythonanywhere_app.py` to match your PythonAnywhere username and paths.
+3.  In your PythonAnywhere **WSGI configuration file**, add:
+    ```python
+    import sys
+    sys.path.insert(0, '/home/<username>/cross_species_conn_grads/code')
+    from pythonanywhere_app import server as application
+    ```
+4.  Reload your web app from the PythonAnywhere dashboard.
+
+The app auto-initializes when imported as a WSGI module. For local development, it also supports the same command-line arguments as Script 7.
 
 ## Outputs
 
