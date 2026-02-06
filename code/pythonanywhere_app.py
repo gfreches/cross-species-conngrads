@@ -634,13 +634,19 @@ def _load_blueprint(species, hemisphere):
     if cache_key in BLUEPRINT_CACHE:
         return BLUEPRINT_CACHE[cache_key]
 
-    bp_file = f"average_{species}_blueprint.{hemisphere}_temporal_lobe_masked.func.gii"
-
-    # Try nested layout first, then flat
-    candidates = [
-        os.path.join(AVERAGE_BP_DIR_GLOBAL, species, bp_file),
-        os.path.join(AVERAGE_BP_DIR_GLOBAL, bp_file),
+    # Try multiple filename conventions:
+    #   original:  average_{species}_blueprint.{hem}_temporal_lobe_masked.func.gii
+    #   PA style:  average_{species}_blueprint_{hem}_temporal_lobe.func.gii
+    bp_file_patterns = [
+        f"average_{species}_blueprint.{hemisphere}_temporal_lobe_masked.func.gii",
+        f"average_{species}_blueprint_{hemisphere}_temporal_lobe.func.gii",
     ]
+
+    # Try nested layout ({dir}/{species}/...) and flat ({dir}/...)
+    candidates = []
+    for bp_file in bp_file_patterns:
+        candidates.append(os.path.join(AVERAGE_BP_DIR_GLOBAL, species, bp_file))
+        candidates.append(os.path.join(AVERAGE_BP_DIR_GLOBAL, bp_file))
 
     for bp_path in candidates:
         if os.path.exists(bp_path):
