@@ -75,6 +75,8 @@ MASK_DIR_GLOBAL = ""
 
 SURFACE_DATA_CACHE = {}
 MASK_CACHE = {}
+COLORSCALE_LUT_CACHE = {}   # colorscale name -> (256, 3) uint8 array
+BLUEPRINT_CACHE = {}         # (species, hem) -> ndarray (vertices, tracts)
 
 # Tab 1 – individual gradients
 # Key: (species, analysis_type)  ->  {hem: np.ndarray (n_vertices, n_grads)}
@@ -289,6 +291,20 @@ def load_cross_species_from_npz(npz_file_path):
     return True
 
 
+def preload_masks():
+    """Eagerly load all mask files into MASK_CACHE at startup."""
+    if not os.path.isdir(MASK_DIR_GLOBAL):
+        return
+    for species in os.listdir(MASK_DIR_GLOBAL):
+        species_dir = os.path.join(MASK_DIR_GLOBAL, species)
+        if not os.path.isdir(species_dir):
+            continue
+        for hem in ("L", "R"):
+            result = load_mask(species, hem)
+            if result is not None:
+                print(f"  Mask cached: {species} {hem} ({int(result.sum())} TL vertices)")
+
+
 def setup_dynamic_plot_configs(df, defaults, default_symbols):
     """Assign colours / symbols for any species_hem combos found in *df*."""
     global PLOT_CONFIGS_SCATTER_GLOBAL, SPECIES_SYMBOLS_GLOBAL
@@ -324,36 +340,34 @@ def _empty_fig(msg="", height=450):
     return go.Figure(layout={"title_text": msg, "height": height})
 
 
+def _get_colorscale_lut(colorscale):
+    """Return a cached (256, 3) uint8 LUT for the given Plotly colorscale."""
+    if colorscale not in COLORSCALE_LUT_CACHE:
+        samples = pcolors.sample_colorscale(colorscale, np.linspace(0, 1, 256).tolist())
+        COLORSCALE_LUT_CACHE[colorscale] = np.array(
+            [[int(c) for c in s[4:-1].split(",")] for s in samples],
+            dtype=np.uint8,
+        )
+    return COLORSCALE_LUT_CACHE[colorscale]
+
+
 def _gradient_to_vertexcolor(gradient_values, mask, colorscale, cmin, cmax):
-    """Map gradient values to per-vertex RGB strings.
+    """Map gradient values to per-vertex RGB lists for Plotly vertexcolor.
 
     Masked (TL) vertices are coloured via *colorscale*; non-TL vertices are
-    set to light grey.  Returns a list of ``'rgb(r,g,b)'`` strings.
+    set to light grey.  Returns a nested Python list [[r,g,b], ...].
     """
-    n = len(gradient_values)
-    # Normalise values to [0, 1] for the colorscale lookup
     span = cmax - cmin if cmax != cmin else 1.0
     norm = np.clip((gradient_values - cmin) / span, 0.0, 1.0)
 
-    # Sample the Plotly colorscale at 256 evenly spaced points
-    lut_rgb = pcolors.sample_colorscale(colorscale, np.linspace(0, 1, 256).tolist())
-
-    # Parse "rgb(r,g,b)" strings into an (256, 3) int array for fast lookup
-    lut = np.array(
-        [[int(c) for c in s[4:-1].split(",")] for s in lut_rgb],
-        dtype=np.uint8,
-    )
-
-    # Map each vertex into the 256-bin LUT
+    lut = _get_colorscale_lut(colorscale)
     idx = (norm * 255).astype(np.intp)
-    vtx_rgb = lut[idx]  # (n, 3)
+    vtx_rgb = lut[idx]  # (n, 3) uint8
 
-    # Override non-TL vertices → light grey
     if mask is not None:
         vtx_rgb[~mask] = [211, 211, 211]
 
-    # Build list of rgb() strings
-    return [f"rgb({r},{g},{b})" for r, g, b in vtx_rgb]
+    return vtx_rgb.tolist()
 
 
 def make_surface_with_gradient(
@@ -461,23 +475,38 @@ def make_surface_plot_highlight(species, hemisphere, highlight_vtx_id=None, titl
     return fig
 
 
-def get_vertex_profile(species, hemisphere, vertex_id):
-    """Retrieve the connectivity profile for a single vertex from a .func.gii blueprint."""
-    if vertex_id == -1 or pd.isna(vertex_id):
-        return None
+def _load_blueprint(species, hemisphere):
+    """Load and cache the masked-average blueprint for a species/hemisphere."""
+    cache_key = (species, hemisphere)
+    if cache_key in BLUEPRINT_CACHE:
+        return BLUEPRINT_CACHE[cache_key]
+
     bp_file = f"average_{species}_blueprint.{hemisphere}_temporal_lobe_masked.func.gii"
     bp_path = os.path.join(AVERAGE_BP_DIR_GLOBAL, species, bp_file)
     if not os.path.exists(bp_path):
+        BLUEPRINT_CACHE[cache_key] = None
         return None
     try:
         img = nib.load(bp_path)
         data = np.array([d.data for d in img.darrays]).T  # (vertices, tracts)
-        vertex_id = int(vertex_id)
-        if 0 <= vertex_id < data.shape[0]:
-            return data[vertex_id, :]
-        return None
+        BLUEPRINT_CACHE[cache_key] = data
+        return data
     except Exception:
+        BLUEPRINT_CACHE[cache_key] = None
         return None
+
+
+def get_vertex_profile(species, hemisphere, vertex_id):
+    """Retrieve the connectivity profile for a single vertex."""
+    if vertex_id == -1 or pd.isna(vertex_id):
+        return None
+    data = _load_blueprint(species, hemisphere)
+    if data is None:
+        return None
+    vertex_id = int(vertex_id)
+    if 0 <= vertex_id < data.shape[0]:
+        return data[vertex_id, :]
+    return None
 
 
 def make_spider(profile, label, color):
@@ -891,7 +920,7 @@ def update_tab1_surfaces(dataset_value, grad_idx, colorscale):
                 species, hem, vals_by_hem[hem], title,
                 colorscale=colorscale,
                 cmin=-max_abs, cmax=max_abs,
-                show_colorbar=True, height=500,
+                show_colorbar=(hem == "R"), height=500,
             )
         else:
             fig = _empty_fig(f"No data: {species} {hem} ({analysis_type})", 500)
@@ -1128,6 +1157,9 @@ if __name__ == "__main__":
     TRACT_NAMES_GLOBAL      = [n.strip() for n in args.tract_names.split(",")]
 
     # ---- Load data ----
+    print("Pre-loading masks ...")
+    preload_masks()
+
     print("Loading individual gradients (Tab 1) ...")
     load_individual_gradients()
 
