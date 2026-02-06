@@ -14,7 +14,7 @@ You can also find an online version of the 2-D interactive plot of this work in 
     * [Script 4: Visualize Individual/Combined Gradients (Static Plots)](#script-4-visualize-individual-combined-gradients-static-plots)
     * [Script 5: Downsample Blueprints via K-Means](#script-5-downsample-blueprints-via-k-means)
     * [Script 6: Compute Cross-Species Gradients](#script-6-compute-cross-species-gradients)
-    * [Script 7: Interactive Gradient Visualization (Dash App)](#script-7-interactive-plot-cross-species)
+    * [Script 7: Interactive Gradient Visualization (Dash App)](#script-7-interactive-gradient-visualization-dash-app)
     * [Script 8: Plot Cross-Species Gradients (Static Scatter Plots)](#script-8-plot-cross-species-gradients-static-scatter-plots)
     * [Script 9: Run Permutation Analysis](#script-9-run-permutation-analysis)
 
@@ -57,9 +57,12 @@ your_project_root/
 │   │   └── <species_name>/         # e.g., human, chimpanzee
 │   │       └── <subject_id_specific_directory_pattern>/ # e.g., subject1_bp_midthickness_inv_L
 │   │           └── <blueprint_filename>                 # e.g., BP.L.dscalar.nii
-│   └── masks/                        # Temporal lobe (or other ROI) masks
+│   ├── masks/                        # Temporal lobe (or other ROI) masks
+│   │   └── <species_name>/
+│   │       └── <species_name>_{hemisphere}.func.gii # e.g., human_L.func.gii (mask per hemisphere)
+│   └── surfaces/                      # Inflated brain surface meshes for visualization
 │       └── <species_name>/
-│           └── <species_name>_{hemisphere}.func.gii # e.g., human_L.func.gii (mask per hemisphere)
+│           └── *.surf.gii             # e.g., Human32k.L.inflated.surf.gii
 ├── results/                        # Main output directory for the pipeline
 │   ├── 1_average_blueprints/
 │   │   └── <species_name>/         # Output of Script 1
@@ -71,11 +74,11 @@ your_project_root/
 │   │   └── <species_name>/         # Output of Script 4
 │   ├── 5_downsampled_blueprints/
 │   │   └── <species_name>/         # Output of Script 5 (centroids, labels, etc.)
-│   └── 6_cross_species_gradients/
-│       ├── intermediates/          # .npy, .npz, plots from cross-species run
-│       │   └── <run_identifier>/
-│       └── <species_name>/         # Remapped cross-species gradients per species
-│           └── cross_species_gradients_remapped/
+│   ├── 6_cross_species_gradients/
+│   │   ├── intermediates/          # .npy, .npz, plots from cross-species run
+│   │   │   └── <run_identifier>/
+│   │   └── <species_name>/         # Remapped cross-species gradients per species
+│   │       └── cross_species_gradients_remapped/
 │   ├── 8_static_cross_species_plots/ # Output of Script 8
 │   └── 9_permutation_analysis/      # Output of Script 9
 └── code/                        # Where your Python scripts (1-9) reside
@@ -239,7 +242,20 @@ This pipeline processes connectivity blueprints through several stages:
 
 ### Script 7: Interactive Gradient Visualization (Dash App)
 * **Name**: `7_interactive_plot_cross_species.py`
-* **Function**: Launches an interactive Dash web application to visualize the cross-species gradients from a specified Script 6 run. The dashboard allows for in-depth exploration of the gradient space by allowing users to click on any data point (vertex) to instantly visualize its detailed connectivity profile on a spider plot and its anatomical location on a 3D brain surface rendering. It also includes a tool to find the closest neighbor for any selected point, either within the same species or across to the other species. The script automatically finds the required input files for the gradient data.
+* **Function**: Launches a tabbed interactive Dash web application for visualizing brain connectivity gradients across species. The app combines 3D brain-surface rendering with scatter-plot exploration in three tabs:
+
+    1.  **Individual Gradients (Tab 1)**: View per-species gradients painted on 3D brain surfaces (left and right hemispheres side-by-side). Select species, analysis type (separate/combined), gradient number, and colorscale. Uses output from **Script 3**.
+    2.  **Cross-Species Gradients (Tab 2)**: View joint cross-species gradients rendered simultaneously on every species/hemisphere surface. A shared color range is applied across all surfaces for direct comparison. Select gradient number and colorscale. Uses output from **Script 6**.
+    3.  **Interactive Explorer (Tab 3)**: Scatter-plot exploration of the cross-species gradient space with marginal histograms. Select which gradients map to the X and Y axes. Click on any data point (vertex) to instantly visualize its detailed connectivity profile on a spider plot, its anatomical location on a 3D brain surface, and the closest neighbour in another species (or the same species). Supports Euclidean, X-axis only, and Y-axis only distance modes. Uses output from **Scripts 2 & 6**.
+
+    Surface rendering in Tabs 1 and 2 paints gradient values only on temporal-lobe (TL) vertices; the rest of the brain is shown in grey. The TL and non-TL regions are rendered as independent meshes with GPU-accelerated colorscale interpolation.
+
+* **Required Data**:
+    * Surface meshes from `data/surfaces/<species>/` (`.surf.gii`)
+    * Temporal-lobe masks from `data/masks/<species>/` (`.func.gii`)
+    * Individual gradients from `results/3_individual_species_gradients/` (Script 3, for Tab 1)
+    * Cross-species `.npz` from `results/6_cross_species_gradients/` (Script 6, for Tabs 2 & 3)
+    * Masked average blueprints from `results/2_masked_average_blueprints/` (Script 2, for Tab 3 spider plots)
 * **Example Command**:
     ```bash
     python code/7_interactive_plot_cross_species.py \
@@ -324,7 +340,7 @@ The pipeline generates several types of outputs in the specified `results` subdi
     * Remapped `.func.gii` gradient files for each species.
     * An `.npz` archive containing the raw joint embedding, segment information, and eigenvalues.
     * Intermediate `.npy` files and dimensionality evaluation plots (Script 6).
-* **Interactive Visualization**: A web application (Script 7).
+* **Interactive Visualization**: A tabbed web application with 3D brain-surface gradient rendering, cross-species comparison views, and scatter-plot exploration with connectivity profiling (Script 7).
 * **Cross-Species Scatter Plots**: Static `.png` files showing relationships between different cross-species gradients (Script 8).
 * **Permutation Analysis**: Console output with statistical results and optional `.png` histograms of null distributions (Script 9).
 
