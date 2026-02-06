@@ -394,14 +394,16 @@ def make_surface_with_gradient(
     if mask is None:
         mask = (gradient_values != 0.0) & np.isfinite(gradient_values)
 
-    # Symmetric range centred at 0, using only finite masked vertices
+    # Actual data range from finite masked vertices
     if cmin is None or cmax is None:
         roi_vals = gradient_values[mask & np.isfinite(gradient_values)]
         if roi_vals.size > 0:
-            max_abs = max(abs(float(np.nanmin(roi_vals))), abs(float(np.nanmax(roi_vals))))
+            cmin = float(np.nanmin(roi_vals))
+            cmax = float(np.nanmax(roi_vals))
         else:
-            max_abs = 1.0
-        cmin, cmax = -max_abs, max_abs
+            cmin, cmax = -1.0, 1.0
+        if cmin == cmax:
+            cmin, cmax = cmin - 1.0, cmax + 1.0
 
     _lighting = dict(ambient=0.65, diffuse=0.7, specular=0.1)
     _lightpos = dict(x=100, y=200, z=300)
@@ -902,7 +904,7 @@ def update_tab1_surfaces(dataset_value, grad_idx, colorscale):
         if gdata is not None and grad_idx < gdata.shape[1]:
             vals_by_hem[hem] = gdata[:, grad_idx]
 
-    # Shared symmetric colour range (only from finite masked / TL vertices)
+    # Shared colour range across both hemispheres (actual data min/max)
     all_roi_vals = []
     for hem, v in vals_by_hem.items():
         m = load_mask(species, hem)
@@ -912,9 +914,10 @@ def update_tab1_surfaces(dataset_value, grad_idx, colorscale):
         all_roi_vals.append(v[m & finite])
     all_roi = np.concatenate(all_roi_vals) if all_roi_vals else np.array([])
     if all_roi.size > 0:
-        max_abs = max(abs(float(all_roi.min())), abs(float(all_roi.max())))
+        shared_min = float(all_roi.min())
+        shared_max = float(all_roi.max())
     else:
-        max_abs = 1.0
+        shared_min, shared_max = -1.0, 1.0
 
     figs = []
     for hem in ("L", "R"):
@@ -923,7 +926,7 @@ def update_tab1_surfaces(dataset_value, grad_idx, colorscale):
             fig = make_surface_with_gradient(
                 species, hem, vals_by_hem[hem], title,
                 colorscale=colorscale,
-                cmin=-max_abs, cmax=max_abs,
+                cmin=shared_min, cmax=shared_max,
                 show_colorbar=(hem == "R"), height=500,
             )
         else:
@@ -959,7 +962,8 @@ def update_tab2_surfaces(grad_idx, colorscale):
             if roi.size > 0:
                 extremes.extend([float(roi.min()), float(roi.max())])
 
-    shared_max = max(abs(min(extremes)), abs(max(extremes))) if extremes else 1.0
+    shared_min = min(extremes) if extremes else -1.0
+    shared_max = max(extremes) if extremes else 1.0
 
     species_blocks = []
     for species in CROSS_SPECIES_SPECIES_LIST:
@@ -972,7 +976,7 @@ def update_tab2_surfaces(grad_idx, colorscale):
                 fig = make_surface_with_gradient(
                     species, hem, values, title,
                     colorscale=colorscale,
-                    cmin=-shared_max, cmax=shared_max,
+                    cmin=shared_min, cmax=shared_max,
                     show_colorbar=(hem == "R"), height=450,
                 )
             else:
