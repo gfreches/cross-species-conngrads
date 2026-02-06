@@ -69,9 +69,16 @@ PA_PROJECT_ROOT = "/home/gfreches/cross_species_conn_grads"
 PA_SPECIES_LIST = ["human", "chimpanzee"]
 PA_TARGET_K_SPECIES = "chimpanzee"
 
+# On PythonAnywhere, all gradient outputs (individual gradients, cross-species
+# gradient surfaces, and the NPZ) live in a single flat directory.
+PA_GRADIENT_OUTPUTS_DIR = "/home/gfreches/cross_species_conn_grads/data/gradient_outputs"
+
 # Optional path overrides – set to None to use defaults derived from
 # PA_PROJECT_ROOT.  Set to an explicit string to override.
-PA_NPZ_PATH_OVERRIDE = None
+PA_NPZ_PATH_OVERRIDE = (
+    "/home/gfreches/cross_species_conn_grads/data/gradient_outputs/"
+    "cross_species_embedding_data_2Species_LR_Combined.npz"
+)
 PA_SURFACE_DIR_OVERRIDE = None
 PA_MASK_DIR_OVERRIDE = None
 PA_INDIVIDUAL_GRAD_DIR_OVERRIDE = None
@@ -117,6 +124,7 @@ SURFACE_DIR_GLOBAL = ""
 INDIVIDUAL_GRAD_DIR_GLOBAL = ""
 AVERAGE_BP_DIR_GLOBAL = ""
 MASK_DIR_GLOBAL = ""
+GRADIENT_OUTPUTS_DIR_GLOBAL = ""  # flat directory with all gradient files (PA layout)
 
 SURFACE_DATA_CACHE = {}
 MASK_CACHE = {}
@@ -191,53 +199,80 @@ def load_mask(species, hemisphere):
         return None
 
 
-def load_individual_gradients():
-    """Scan results/3_individual_species_gradients/ and load gradient GIFTIs."""
+def _try_load_individual_gradient(species, hem, analysis_type, fpath):
+    """Attempt to load one individual-gradient GIFTI.  Returns True on success."""
+    if not os.path.exists(fpath):
+        return False
+    key = (species, analysis_type)
+    if key in INDIVIDUAL_GRADIENTS and hem in INDIVIDUAL_GRADIENTS[key]:
+        return False  # already loaded
+    try:
+        img = nib.load(fpath)
+        n_grads = len(img.darrays)
+        grad_data = np.column_stack([d.data for d in img.darrays])
+
+        INDIVIDUAL_GRADIENTS.setdefault(key, {})[hem] = grad_data
+
+        existing = [
+            info for info in INDIVIDUAL_GRADIENT_INFO
+            if info["species"] == species
+            and info["analysis_type"] == analysis_type
+        ]
+        if existing:
+            if hem not in existing[0]["hems"]:
+                existing[0]["hems"].append(hem)
+        else:
+            INDIVIDUAL_GRADIENT_INFO.append({
+                "species": species,
+                "analysis_type": analysis_type,
+                "hems": [hem],
+                "n_grads": n_grads,
+            })
+        print(f"  Loaded: {species} {hem} {analysis_type} ({n_grads} gradients)")
+        return True
+    except Exception as e:
+        print(f"  Error loading {fpath}: {e}")
+        return False
+
+
+def load_individual_gradients(species_list=None):
+    """Scan for individual gradient GIFTIs.
+
+    Searches two locations:
+      1. Nested layout: ``INDIVIDUAL_GRAD_DIR_GLOBAL/{species}/``
+         (standard project structure from Script 3).
+      2. Flat layout: ``GRADIENT_OUTPUTS_DIR_GLOBAL/``
+         (PythonAnywhere single-directory layout).
+    """
     global INDIVIDUAL_GRADIENTS, INDIVIDUAL_GRADIENT_INFO
 
-    if not os.path.exists(INDIVIDUAL_GRAD_DIR_GLOBAL):
-        print("Individual gradient directory not found - Tab 1 will be empty.")
+    # Discover species from nested directory if no explicit list given
+    discovered_species = set(species_list or [])
+    if os.path.isdir(INDIVIDUAL_GRAD_DIR_GLOBAL):
+        for name in os.listdir(INDIVIDUAL_GRAD_DIR_GLOBAL):
+            if os.path.isdir(os.path.join(INDIVIDUAL_GRAD_DIR_GLOBAL, name)):
+                discovered_species.add(name)
+
+    if not discovered_species and not os.path.isdir(GRADIENT_OUTPUTS_DIR_GLOBAL):
+        print("Individual gradient directories not found - Tab 1 will be empty.")
         return
 
-    for species in sorted(os.listdir(INDIVIDUAL_GRAD_DIR_GLOBAL)):
-        species_dir = os.path.join(INDIVIDUAL_GRAD_DIR_GLOBAL, species)
-        if not os.path.isdir(species_dir):
-            continue
-
+    for species in sorted(discovered_species):
         for hem in ("L", "R"):
-            for analysis_type, file_pattern in (
+            for analysis_type, fname in (
                 ("separate", f"all_computed_gradients_{species}_{hem}_SEPARATE.func.gii"),
                 ("combined", f"all_computed_gradients_{species}_COMBINED_{hem}.func.gii"),
             ):
-                fpath = os.path.join(species_dir, file_pattern)
-                if not os.path.exists(fpath):
-                    continue
-                try:
-                    img = nib.load(fpath)
-                    n_grads = len(img.darrays)
-                    grad_data = np.column_stack([d.data for d in img.darrays])
+                # Try nested layout first, then flat
+                nested_path = os.path.join(
+                    INDIVIDUAL_GRAD_DIR_GLOBAL, species, fname,
+                )
+                flat_path = os.path.join(
+                    GRADIENT_OUTPUTS_DIR_GLOBAL, fname,
+                ) if GRADIENT_OUTPUTS_DIR_GLOBAL else ""
 
-                    key = (species, analysis_type)
-                    INDIVIDUAL_GRADIENTS.setdefault(key, {})[hem] = grad_data
-
-                    existing = [
-                        info for info in INDIVIDUAL_GRADIENT_INFO
-                        if info["species"] == species
-                        and info["analysis_type"] == analysis_type
-                    ]
-                    if existing:
-                        if hem not in existing[0]["hems"]:
-                            existing[0]["hems"].append(hem)
-                    else:
-                        INDIVIDUAL_GRADIENT_INFO.append({
-                            "species": species,
-                            "analysis_type": analysis_type,
-                            "hems": [hem],
-                            "n_grads": n_grads,
-                        })
-                    print(f"  Loaded: {species} {hem} {analysis_type} ({n_grads} gradients)")
-                except Exception as e:
-                    print(f"  Error loading {fpath}: {e}")
+                if not _try_load_individual_gradient(species, hem, analysis_type, nested_path):
+                    _try_load_individual_gradient(species, hem, analysis_type, flat_path)
 
 
 def load_cross_species_from_npz(npz_file_path):
@@ -359,6 +394,51 @@ def load_cross_species_from_npz(npz_file_path):
         df_global["df_idx"] = df_global.index
         AVAILABLE_EXPLORER_GRADIENTS = [f"g{i + 1}" for i in range(n_dims)]
     return True
+
+
+def load_cross_species_gradient_surfaces(species_list, target_k_species):
+    """Load pre-computed cross-species gradient surface GIFTIs.
+
+    On PythonAnywhere these live in the flat gradient_outputs directory as
+    ``{species}_{hem}_from_cs_gradients_k_{target}.func.gii``.  Also checks
+    the nested results directory.  Populates CROSS_SPECIES_GRADIENT_MAPS for
+    Tab 2 if they haven't already been filled by NPZ loading.
+    """
+    global CROSS_SPECIES_GRADIENT_MAPS, N_CROSS_SPECIES_GRADIENTS
+    global CROSS_SPECIES_SPECIES_LIST
+
+    search_dirs = []
+    if GRADIENT_OUTPUTS_DIR_GLOBAL and os.path.isdir(GRADIENT_OUTPUTS_DIR_GLOBAL):
+        search_dirs.append(GRADIENT_OUTPUTS_DIR_GLOBAL)
+
+    if not search_dirs:
+        return
+
+    species_seen = set(CROSS_SPECIES_SPECIES_LIST)
+    for species in species_list:
+        for hem in ("L", "R"):
+            if (species, hem) in CROSS_SPECIES_GRADIENT_MAPS:
+                continue  # already loaded from NPZ
+            fname = f"{species}_{hem}_from_cs_gradients_k_{target_k_species}.func.gii"
+            for d in search_dirs:
+                fpath = os.path.join(d, fname)
+                if not os.path.exists(fpath):
+                    continue
+                try:
+                    img = nib.load(fpath)
+                    n_grads = len(img.darrays)
+                    grad_data = np.column_stack([d_arr.data for d_arr in img.darrays])
+                    CROSS_SPECIES_GRADIENT_MAPS[(species, hem)] = grad_data
+                    N_CROSS_SPECIES_GRADIENTS = max(N_CROSS_SPECIES_GRADIENTS, n_grads)
+                    species_seen.add(species)
+                    print(f"  Loaded CS gradient surface: {species} {hem} "
+                          f"({n_grads} gradients)")
+                    break
+                except Exception as e:
+                    print(f"  Error loading {fpath}: {e}")
+
+    if species_seen:
+        CROSS_SPECIES_SPECIES_LIST = sorted(species_seen)
 
 
 def preload_masks():
@@ -1219,12 +1299,13 @@ def configure_and_load(
     mask_dir_override=None,
     individual_grad_dir_override=None,
     average_bp_dir_override=None,
+    gradient_outputs_dir=None,
     n_tracts=DEFAULT_N_TRACTS,
     tract_names=None,
 ):
     """Set global paths, load all data, and build the app layout."""
     global SURFACE_DIR_GLOBAL, INDIVIDUAL_GRAD_DIR_GLOBAL
-    global AVERAGE_BP_DIR_GLOBAL, MASK_DIR_GLOBAL
+    global AVERAGE_BP_DIR_GLOBAL, MASK_DIR_GLOBAL, GRADIENT_OUTPUTS_DIR_GLOBAL
     global N_TRACTS_EXPECTED_GLOBAL, TRACT_NAMES_GLOBAL
 
     # Resolve paths
@@ -1238,6 +1319,7 @@ def configure_and_load(
         average_bp_dir_override
         or os.path.join(project_root, "results", "2_masked_average_blueprints")
     )
+    GRADIENT_OUTPUTS_DIR_GLOBAL = gradient_outputs_dir or ""
 
     N_TRACTS_EXPECTED_GLOBAL = n_tracts
     TRACT_NAMES_GLOBAL = tract_names or list(DEFAULT_TRACT_NAMES)
@@ -1262,11 +1344,17 @@ def configure_and_load(
     preload_masks()
 
     print("Loading individual gradients (Tab 1) ...")
-    load_individual_gradients()
+    load_individual_gradients(species_list=species_list)
 
     print("Loading cross-species embedding (Tabs 2 & 3) ...")
     if not load_cross_species_from_npz(npz_file_path):
-        print("WARNING: Cross-species data unavailable - Tabs 2 & 3 will show placeholders.")
+        print("WARNING: NPZ data unavailable - Tab 3 will show placeholders.")
+
+    print("Loading cross-species gradient surfaces (Tab 2) ...")
+    load_cross_species_gradient_surfaces(species_list, target_k_species)
+
+    if not CROSS_SPECIES_GRADIENT_MAPS:
+        print("WARNING: No cross-species gradient surfaces found - Tab 2 will show placeholders.")
 
     setup_dynamic_plot_configs(
         df_global, DEFAULT_PLOT_CONFIGS_SCATTER, DEFAULT_SPECIES_SYMBOLS,
@@ -1300,6 +1388,7 @@ def _pa_init():
         mask_dir_override=PA_MASK_DIR_OVERRIDE,
         individual_grad_dir_override=PA_INDIVIDUAL_GRAD_DIR_OVERRIDE,
         average_bp_dir_override=PA_AVERAGE_BP_DIR_OVERRIDE,
+        gradient_outputs_dir=PA_GRADIENT_OUTPUTS_DIR,
     )
 
 
@@ -1344,6 +1433,10 @@ if __name__ == "__main__":
         "--npz_path", type=str, default=None,
         help="Explicit path to the .npz file (overrides auto-generated path).",
     )
+    parser.add_argument(
+        "--gradient_outputs_dir", type=str, default=None,
+        help="Flat directory containing all gradient output files (PA layout).",
+    )
     parser.add_argument("--host", type=str, default="127.0.0.1")
     parser.add_argument("--port", type=int, default=8050)
     parser.add_argument("--debug", action="store_true")
@@ -1358,6 +1451,7 @@ if __name__ == "__main__":
         target_k_species=args.target_k_species_for_run,
         npz_path_override=args.npz_path,
         surface_dir_override=args.surface_dir,
+        gradient_outputs_dir=args.gradient_outputs_dir,
         n_tracts=args.n_tracts,
         tract_names=tract_names,
     )
