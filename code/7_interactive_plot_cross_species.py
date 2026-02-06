@@ -373,10 +373,13 @@ def make_surface_with_gradient(
         return _empty_fig(f"Gradient data mismatch: {species} {hemisphere}", height)
 
     mask = load_mask(species, hemisphere)
+    # Fallback: derive mask from the data (non-TL vertices are exactly 0)
+    if mask is None:
+        mask = gradient_values != 0.0
 
     # Symmetric range centred at 0, using only masked vertices
     if cmin is None or cmax is None:
-        roi_vals = gradient_values[mask] if mask is not None else gradient_values[gradient_values != 0]
+        roi_vals = gradient_values[mask]
         if roi_vals.size > 0:
             max_abs = max(abs(float(roi_vals.min())), abs(float(roi_vals.max())))
         else:
@@ -871,7 +874,9 @@ def update_tab1_surfaces(dataset_value, grad_idx, colorscale):
     all_roi_vals = []
     for hem, v in vals_by_hem.items():
         m = load_mask(species, hem)
-        all_roi_vals.append(v[m] if m is not None else v[v != 0])
+        if m is None:
+            m = v != 0.0
+        all_roi_vals.append(v[m])
     all_roi = np.concatenate(all_roi_vals) if all_roi_vals else np.array([])
     if all_roi.size > 0:
         max_abs = max(abs(float(all_roi.min())), abs(float(all_roi.max())))
@@ -914,7 +919,9 @@ def update_tab2_surfaces(grad_idx, colorscale):
     for (_s, _h), maps in CROSS_SPECIES_GRADIENT_MAPS.items():
         if grad_idx < maps.shape[1]:
             m = load_mask(_s, _h)
-            roi = maps[m, grad_idx] if m is not None else maps[:, grad_idx][maps[:, grad_idx] != 0]
+            if m is None:
+                m = maps[:, grad_idx] != 0.0
+            roi = maps[m, grad_idx]
             if roi.size > 0:
                 extremes.extend([float(roi.min()), float(roi.max())])
 
