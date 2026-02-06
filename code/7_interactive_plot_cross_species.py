@@ -30,6 +30,7 @@ import nibabel as nib
 import dash
 from dash import dcc, html, Input, Output, State, callback_context
 import plotly.graph_objects as go
+import plotly.colors as pcolors
 from plotly.subplots import make_subplots
 from flask import Flask
 from sklearn.metrics.pairwise import euclidean_distances
@@ -323,6 +324,38 @@ def _empty_fig(msg="", height=450):
     return go.Figure(layout={"title_text": msg, "height": height})
 
 
+def _gradient_to_vertexcolor(gradient_values, mask, colorscale, cmin, cmax):
+    """Map gradient values to per-vertex RGB strings.
+
+    Masked (TL) vertices are coloured via *colorscale*; non-TL vertices are
+    set to light grey.  Returns a list of ``'rgb(r,g,b)'`` strings.
+    """
+    n = len(gradient_values)
+    # Normalise values to [0, 1] for the colorscale lookup
+    span = cmax - cmin if cmax != cmin else 1.0
+    norm = np.clip((gradient_values - cmin) / span, 0.0, 1.0)
+
+    # Sample the Plotly colorscale at 256 evenly spaced points
+    lut_rgb = pcolors.sample_colorscale(colorscale, np.linspace(0, 1, 256).tolist())
+
+    # Parse "rgb(r,g,b)" strings into an (256, 3) int array for fast lookup
+    lut = np.array(
+        [[int(c) for c in s[4:-1].split(",")] for s in lut_rgb],
+        dtype=np.uint8,
+    )
+
+    # Map each vertex into the 256-bin LUT
+    idx = (norm * 255).astype(np.intp)
+    vtx_rgb = lut[idx]  # (n, 3)
+
+    # Override non-TL vertices → light grey
+    if mask is not None:
+        vtx_rgb[~mask] = [211, 211, 211]
+
+    # Build list of rgb() strings
+    return [f"rgb({r},{g},{b})" for r, g, b in vtx_rgb]
+
+
 def make_surface_with_gradient(
     species, hemisphere, gradient_values, title="",
     colorscale="RdBu_r", cmin=None, cmax=None,
@@ -330,8 +363,8 @@ def make_surface_with_gradient(
 ):
     """3D brain surface coloured by per-vertex gradient values.
 
-    Non-TL vertices (outside the mask) are rendered as a grey base surface;
-    gradient colouring is applied only to faces fully inside the TL mask.
+    Uses explicit per-vertex colours so that non-TL vertices are guaranteed
+    to appear as neutral grey regardless of colorscale.
     """
     vertices, faces = load_surface(species, hemisphere)
     if vertices is None:
@@ -353,48 +386,29 @@ def make_surface_with_gradient(
     _lighting = dict(ambient=0.65, diffuse=0.7, specular=0.1)
     _lightpos = dict(x=100, y=200, z=300)
 
+    vertex_colors = _gradient_to_vertexcolor(gradient_values, mask, colorscale, cmin, cmax)
+
     fig = go.Figure()
+    fig.add_trace(go.Mesh3d(
+        x=vertices[:, 0], y=vertices[:, 1], z=vertices[:, 2],
+        i=faces[:, 0], j=faces[:, 1], k=faces[:, 2],
+        vertexcolor=vertex_colors,
+        opacity=1.0,
+        hoverinfo="none",
+        lighting=_lighting, lightposition=_lightpos,
+    ))
 
-    if mask is not None:
-        # Base surface: full brain in grey
+    # Invisible dummy trace to produce a colorbar
+    if show_colorbar:
         fig.add_trace(go.Mesh3d(
-            x=vertices[:, 0], y=vertices[:, 1], z=vertices[:, 2],
-            i=faces[:, 0], j=faces[:, 1], k=faces[:, 2],
-            color="lightgrey", opacity=1.0,
-            hoverinfo="none",
-            lighting=_lighting, lightposition=_lightpos,
-        ))
-
-        # Faces where ALL three vertices fall inside the TL mask
-        tl_face_mask = mask[faces[:, 0]] & mask[faces[:, 1]] & mask[faces[:, 2]]
-        tl_faces = faces[tl_face_mask]
-
-        if len(tl_faces) > 0:
-            fig.add_trace(go.Mesh3d(
-                x=vertices[:, 0], y=vertices[:, 1], z=vertices[:, 2],
-                i=tl_faces[:, 0], j=tl_faces[:, 1], k=tl_faces[:, 2],
-                intensity=gradient_values,
-                intensitymode="vertex",
-                colorscale=colorscale,
-                cmin=cmin, cmax=cmax,
-                showscale=show_colorbar,
-                colorbar=dict(title="Value", len=0.6) if show_colorbar else None,
-                hoverinfo="none",
-                lighting=_lighting, lightposition=_lightpos,
-            ))
-    else:
-        # No mask available – fall back to colouring the whole surface
-        fig.add_trace(go.Mesh3d(
-            x=vertices[:, 0], y=vertices[:, 1], z=vertices[:, 2],
-            i=faces[:, 0], j=faces[:, 1], k=faces[:, 2],
-            intensity=gradient_values,
+            x=[0, 0, 0], y=[0, 0, 0], z=[0, 0, 0],
+            i=[0], j=[1], k=[2],
+            intensity=[cmin, (cmin + cmax) / 2, cmax],
             intensitymode="vertex",
-            colorscale=colorscale,
-            cmin=cmin, cmax=cmax,
-            showscale=show_colorbar,
-            colorbar=dict(title="Value", len=0.6) if show_colorbar else None,
-            hoverinfo="none",
-            lighting=_lighting, lightposition=_lightpos,
+            colorscale=colorscale, cmin=cmin, cmax=cmax,
+            showscale=True,
+            colorbar=dict(title="Value", len=0.6),
+            hoverinfo="skip", opacity=0,
         ))
 
     eye = dict(x=-1.7, y=0, z=0) if hemisphere.upper() == "L" else dict(x=1.7, y=0, z=0)
