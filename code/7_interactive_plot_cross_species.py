@@ -415,23 +415,23 @@ def make_surface_with_gradient(
         lighting=_lighting, lightposition=_lightpos,
     ))
 
-    # Invisible dummy trace to produce a colorbar
+    # Invisible point on the brain surface to carry the colorbar
     if show_colorbar:
-        fig.add_trace(go.Mesh3d(
-            x=[0, 0, 0], y=[0, 0, 0], z=[0, 0, 0],
-            i=[0], j=[1], k=[2],
-            intensity=[cmin, (cmin + cmax) / 2, cmax],
-            intensitymode="vertex",
-            colorscale=colorscale, cmin=cmin, cmax=cmax,
-            showscale=True,
-            colorbar=dict(title="Value", len=0.6),
-            hoverinfo="skip", opacity=0,
+        cx, cy, cz = vertices.mean(axis=0)
+        fig.add_trace(go.Scatter3d(
+            x=[cx], y=[cy], z=[cz], mode="markers",
+            marker=dict(
+                size=0.001, color=[0], colorscale=colorscale,
+                cmin=cmin, cmax=cmax, showscale=True,
+                colorbar=dict(title="Value", len=0.6),
+            ),
+            hoverinfo="skip", showlegend=False,
         ))
 
     eye = dict(x=-1.7, y=0, z=0) if hemisphere.upper() == "L" else dict(x=1.7, y=0, z=0)
     fig.update_layout(
         title_text=title, title_font_size=12, height=height,
-        margin=dict(l=5, r=5, t=40, b=5),
+        margin=dict(l=5, r=60, t=40, b=5),
         scene=dict(
             xaxis=dict(visible=False), yaxis=dict(visible=False), zaxis=dict(visible=False),
             aspectratio=dict(x=1, y=1, z=1), aspectmode="data",
