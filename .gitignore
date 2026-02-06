@@ -19,3 +19,6 @@ Thumbs.db
 
 # Environment
 .env
+
+# Large intermediate result files (regenerable via pipeline)
+results/**/*.npy
