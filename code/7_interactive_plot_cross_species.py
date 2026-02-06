@@ -380,8 +380,8 @@ def make_surface_with_gradient(
 ):
     """3D brain surface coloured by per-vertex gradient values.
 
-    Uses explicit per-vertex colours so that non-TL vertices are guaranteed
-    to appear as neutral grey regardless of colorscale.
+    Renders the TL and non-TL regions as separate Mesh3d traces so that
+    Plotly never interpolates colours across the boundary.
     """
     vertices, faces = load_surface(species, hemisphere)
     if vertices is None:
@@ -408,17 +408,36 @@ def make_surface_with_gradient(
     _lighting = dict(ambient=0.65, diffuse=0.7, specular=0.1)
     _lightpos = dict(x=100, y=200, z=300)
 
-    vertex_colors = _gradient_to_vertexcolor(gradient_values, mask, colorscale, cmin, cmax)
+    # Split faces: TL faces (all 3 verts in mask) vs the rest
+    tl_face_mask = mask[faces[:, 0]] & mask[faces[:, 1]] & mask[faces[:, 2]]
+    tl_faces = faces[tl_face_mask]
+    non_tl_faces = faces[~tl_face_mask]
+
+    # Gradient colours only for TL vertices (via vertexcolor)
+    vertex_colors = _gradient_to_vertexcolor(gradient_values, None, colorscale, cmin, cmax)
 
     fig = go.Figure()
-    fig.add_trace(go.Mesh3d(
-        x=vertices[:, 0], y=vertices[:, 1], z=vertices[:, 2],
-        i=faces[:, 0], j=faces[:, 1], k=faces[:, 2],
-        vertexcolor=vertex_colors,
-        opacity=1.0,
-        hoverinfo="none",
-        lighting=_lighting, lightposition=_lightpos,
-    ))
+
+    # Non-TL faces: plain grey (separate trace → no interpolation across boundary)
+    if len(non_tl_faces) > 0:
+        fig.add_trace(go.Mesh3d(
+            x=vertices[:, 0], y=vertices[:, 1], z=vertices[:, 2],
+            i=non_tl_faces[:, 0], j=non_tl_faces[:, 1], k=non_tl_faces[:, 2],
+            color="rgb(211,211,211)", opacity=1.0,
+            hoverinfo="none",
+            lighting=_lighting, lightposition=_lightpos,
+        ))
+
+    # TL faces: gradient-coloured via vertexcolor
+    if len(tl_faces) > 0:
+        fig.add_trace(go.Mesh3d(
+            x=vertices[:, 0], y=vertices[:, 1], z=vertices[:, 2],
+            i=tl_faces[:, 0], j=tl_faces[:, 1], k=tl_faces[:, 2],
+            vertexcolor=vertex_colors,
+            opacity=1.0,
+            hoverinfo="none",
+            lighting=_lighting, lightposition=_lightpos,
+        ))
 
     # Invisible point on the brain surface to carry the colorbar
     if show_colorbar:
