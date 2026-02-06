@@ -357,8 +357,11 @@ def _gradient_to_vertexcolor(gradient_values, mask, colorscale, cmin, cmax):
     Masked (TL) vertices are coloured via *colorscale*; non-TL vertices are
     set to light grey.  Returns a nested Python list [[r,g,b], ...].
     """
+    # Sanitise: NaN / Inf would produce garbage LUT indices
+    safe_vals = np.nan_to_num(gradient_values, nan=0.0, posinf=0.0, neginf=0.0)
+
     span = cmax - cmin if cmax != cmin else 1.0
-    norm = np.clip((gradient_values - cmin) / span, 0.0, 1.0)
+    norm = np.clip((safe_vals - cmin) / span, 0.0, 1.0)
 
     lut = _get_colorscale_lut(colorscale)
     idx = (norm * 255).astype(np.intp)
@@ -387,15 +390,15 @@ def make_surface_with_gradient(
         return _empty_fig(f"Gradient data mismatch: {species} {hemisphere}", height)
 
     mask = load_mask(species, hemisphere)
-    # Fallback: derive mask from the data (non-TL vertices are exactly 0)
+    # Fallback: derive mask from the data (non-TL vertices are exactly 0 and finite)
     if mask is None:
-        mask = gradient_values != 0.0
+        mask = (gradient_values != 0.0) & np.isfinite(gradient_values)
 
-    # Symmetric range centred at 0, using only masked vertices
+    # Symmetric range centred at 0, using only finite masked vertices
     if cmin is None or cmax is None:
-        roi_vals = gradient_values[mask]
+        roi_vals = gradient_values[mask & np.isfinite(gradient_values)]
         if roi_vals.size > 0:
-            max_abs = max(abs(float(roi_vals.min())), abs(float(roi_vals.max())))
+            max_abs = max(abs(float(np.nanmin(roi_vals))), abs(float(np.nanmax(roi_vals))))
         else:
             max_abs = 1.0
         cmin, cmax = -max_abs, max_abs
@@ -899,13 +902,14 @@ def update_tab1_surfaces(dataset_value, grad_idx, colorscale):
         if gdata is not None and grad_idx < gdata.shape[1]:
             vals_by_hem[hem] = gdata[:, grad_idx]
 
-    # Shared symmetric colour range (only from masked / TL vertices)
+    # Shared symmetric colour range (only from finite masked / TL vertices)
     all_roi_vals = []
     for hem, v in vals_by_hem.items():
         m = load_mask(species, hem)
         if m is None:
-            m = v != 0.0
-        all_roi_vals.append(v[m])
+            m = (v != 0.0) & np.isfinite(v)
+        finite = np.isfinite(v)
+        all_roi_vals.append(v[m & finite])
     all_roi = np.concatenate(all_roi_vals) if all_roi_vals else np.array([])
     if all_roi.size > 0:
         max_abs = max(abs(float(all_roi.min())), abs(float(all_roi.max())))
@@ -943,14 +947,15 @@ def update_tab2_surfaces(grad_idx, colorscale):
     if grad_idx is None:
         return html.P("Select a gradient.", style={"color": "grey", "padding": "20px"})
 
-    # Shared colour range across every species/hemisphere (masked vertices only)
+    # Shared colour range across every species/hemisphere (finite masked vertices)
     extremes = []
     for (_s, _h), maps in CROSS_SPECIES_GRADIENT_MAPS.items():
         if grad_idx < maps.shape[1]:
+            col = maps[:, grad_idx]
             m = load_mask(_s, _h)
             if m is None:
-                m = maps[:, grad_idx] != 0.0
-            roi = maps[m, grad_idx]
+                m = (col != 0.0) & np.isfinite(col)
+            roi = col[m & np.isfinite(col)]
             if roi.size > 0:
                 extremes.extend([float(roi.min()), float(roi.max())])
 
