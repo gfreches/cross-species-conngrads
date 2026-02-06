@@ -328,36 +328,74 @@ def make_surface_with_gradient(
     colorscale="RdBu_r", cmin=None, cmax=None,
     show_colorbar=True, height=450,
 ):
-    """3D brain surface coloured by per-vertex gradient values."""
+    """3D brain surface coloured by per-vertex gradient values.
+
+    Non-TL vertices (outside the mask) are rendered as a grey base surface;
+    gradient colouring is applied only to faces fully inside the TL mask.
+    """
     vertices, faces = load_surface(species, hemisphere)
     if vertices is None:
         return _empty_fig(f"Surface not found: {species} {hemisphere}", height)
     if gradient_values is None or len(gradient_values) != len(vertices):
         return _empty_fig(f"Gradient data mismatch: {species} {hemisphere}", height)
 
-    # Symmetric range centred at 0 (so non-TL vertices at 0 = white for RdBu)
+    mask = load_mask(species, hemisphere)
+
+    # Symmetric range centred at 0, using only masked vertices
     if cmin is None or cmax is None:
-        nonzero = gradient_values[gradient_values != 0]
-        if nonzero.size > 0:
-            max_abs = max(abs(float(nonzero.min())), abs(float(nonzero.max())))
+        roi_vals = gradient_values[mask] if mask is not None else gradient_values[gradient_values != 0]
+        if roi_vals.size > 0:
+            max_abs = max(abs(float(roi_vals.min())), abs(float(roi_vals.max())))
         else:
             max_abs = 1.0
         cmin, cmax = -max_abs, max_abs
 
+    _lighting = dict(ambient=0.65, diffuse=0.7, specular=0.1)
+    _lightpos = dict(x=100, y=200, z=300)
+
     fig = go.Figure()
-    fig.add_trace(go.Mesh3d(
-        x=vertices[:, 0], y=vertices[:, 1], z=vertices[:, 2],
-        i=faces[:, 0], j=faces[:, 1], k=faces[:, 2],
-        intensity=gradient_values,
-        intensitymode="vertex",
-        colorscale=colorscale,
-        cmin=cmin, cmax=cmax,
-        showscale=show_colorbar,
-        colorbar=dict(title="Value", len=0.6) if show_colorbar else None,
-        hoverinfo="none",
-        lighting=dict(ambient=0.5, diffuse=0.7, specular=0.2),
-        lightposition=dict(x=100, y=200, z=300),
-    ))
+
+    if mask is not None:
+        # Base surface: full brain in grey
+        fig.add_trace(go.Mesh3d(
+            x=vertices[:, 0], y=vertices[:, 1], z=vertices[:, 2],
+            i=faces[:, 0], j=faces[:, 1], k=faces[:, 2],
+            color="lightgrey", opacity=1.0,
+            hoverinfo="none",
+            lighting=_lighting, lightposition=_lightpos,
+        ))
+
+        # Faces where ALL three vertices fall inside the TL mask
+        tl_face_mask = mask[faces[:, 0]] & mask[faces[:, 1]] & mask[faces[:, 2]]
+        tl_faces = faces[tl_face_mask]
+
+        if len(tl_faces) > 0:
+            fig.add_trace(go.Mesh3d(
+                x=vertices[:, 0], y=vertices[:, 1], z=vertices[:, 2],
+                i=tl_faces[:, 0], j=tl_faces[:, 1], k=tl_faces[:, 2],
+                intensity=gradient_values,
+                intensitymode="vertex",
+                colorscale=colorscale,
+                cmin=cmin, cmax=cmax,
+                showscale=show_colorbar,
+                colorbar=dict(title="Value", len=0.6) if show_colorbar else None,
+                hoverinfo="none",
+                lighting=_lighting, lightposition=_lightpos,
+            ))
+    else:
+        # No mask available – fall back to colouring the whole surface
+        fig.add_trace(go.Mesh3d(
+            x=vertices[:, 0], y=vertices[:, 1], z=vertices[:, 2],
+            i=faces[:, 0], j=faces[:, 1], k=faces[:, 2],
+            intensity=gradient_values,
+            intensitymode="vertex",
+            colorscale=colorscale,
+            cmin=cmin, cmax=cmax,
+            showscale=show_colorbar,
+            colorbar=dict(title="Value", len=0.6) if show_colorbar else None,
+            hoverinfo="none",
+            lighting=_lighting, lightposition=_lightpos,
+        ))
 
     eye = dict(x=-1.7, y=0, z=0) if hemisphere.upper() == "L" else dict(x=1.7, y=0, z=0)
     fig.update_layout(
@@ -815,12 +853,14 @@ def update_tab1_surfaces(dataset_value, grad_idx, colorscale):
         if gdata is not None and grad_idx < gdata.shape[1]:
             vals_by_hem[hem] = gdata[:, grad_idx]
 
-    # Shared symmetric colour range
-    all_nonzero = np.concatenate(
-        [v[v != 0] for v in vals_by_hem.values() if v is not None]
-    ) if vals_by_hem else np.array([])
-    if all_nonzero.size > 0:
-        max_abs = max(abs(float(all_nonzero.min())), abs(float(all_nonzero.max())))
+    # Shared symmetric colour range (only from masked / TL vertices)
+    all_roi_vals = []
+    for hem, v in vals_by_hem.items():
+        m = load_mask(species, hem)
+        all_roi_vals.append(v[m] if m is not None else v[v != 0])
+    all_roi = np.concatenate(all_roi_vals) if all_roi_vals else np.array([])
+    if all_roi.size > 0:
+        max_abs = max(abs(float(all_roi.min())), abs(float(all_roi.max())))
     else:
         max_abs = 1.0
 
@@ -855,13 +895,14 @@ def update_tab2_surfaces(grad_idx, colorscale):
     if grad_idx is None:
         return html.P("Select a gradient.", style={"color": "grey", "padding": "20px"})
 
-    # Shared colour range across every species/hemisphere
+    # Shared colour range across every species/hemisphere (masked vertices only)
     extremes = []
     for (_s, _h), maps in CROSS_SPECIES_GRADIENT_MAPS.items():
         if grad_idx < maps.shape[1]:
-            nz = maps[:, grad_idx][maps[:, grad_idx] != 0]
-            if nz.size > 0:
-                extremes.extend([float(nz.min()), float(nz.max())])
+            m = load_mask(_s, _h)
+            roi = maps[m, grad_idx] if m is not None else maps[:, grad_idx][maps[:, grad_idx] != 0]
+            if roi.size > 0:
+                extremes.extend([float(roi.min()), float(roi.max())])
 
     shared_max = max(abs(min(extremes)), abs(max(extremes))) if extremes else 1.0
 
