@@ -359,20 +359,6 @@ data/
 └── downsampled_temporal_lobe_blueprints/
 ```
 
-### Deploying to PythonAnywhere
-
-1.  Upload the data files to the directory structure shown above.
-2.  Edit the `PA_*` configuration constants at the top of `code/pythonanywhere_app.py` to match your PythonAnywhere username and paths.
-3.  In your PythonAnywhere **WSGI configuration file**, add:
-    ```python
-    import sys
-    sys.path.insert(0, '/home/<username>/cross_species_conn_grads/code')
-    from pythonanywhere_app import server as application
-    ```
-4.  Reload your web app from the PythonAnywhere dashboard.
-
-The app auto-initializes when imported as a WSGI module. For local development, it also supports the same command-line arguments as Script 7.
-
 ## Outputs
 
 The pipeline generates several types of outputs in the specified `results` subdirectories:
