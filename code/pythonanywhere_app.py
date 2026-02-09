@@ -7,17 +7,24 @@ Adapted from script 7 (7_interactive_plot_cross_species.py) for hosting
 on PythonAnywhere.  Provides three interactive tabs:
 
   Tab 1 - Individual Gradients:
-      View per-species gradients painted on brain surfaces (L and R side by side).
-      Select species, analysis type (separate / combined), and gradient number.
+      View per-species combined-hemisphere gradients painted on brain surfaces
+      (L and R side by side).  Select species and gradient number.
 
   Tab 2 - Cross-Species Gradients:
       View joint cross-species gradients on all species' surfaces simultaneously.
       Select a gradient number and see it rendered on every species / hemisphere.
 
   Tab 3 - Interactive Explorer:
-      Scatter-plot exploration of cross-species gradient space.  Select which
-      gradients map to the X and Y axes.  Click a point to see its connectivity
-      profile and brain-surface location, plus its nearest neighbour.
+      Two display modes:
+        Scatter Plot - scatter-plot exploration of gradient space with marginal
+            histograms.  Click a point to see connectivity profile and nearest
+            neighbour.
+        Surface Plot - choose one gradient for the left panel and another for
+            the right, rendered on brain surfaces.  Click a vertex on either
+            side to see its connectivity profile; the corresponding vertex is
+            highlighted on the opposite panel.
+      A data-source selector switches between chimpanzee-only, human-only, and
+      cross-species gradient data.
 
 PythonAnywhere setup:
   1. Edit the CONFIGURATION section below to match your PA paths.
@@ -134,22 +141,30 @@ SURFACE_DATA_CACHE = {}
 MASK_CACHE = {}
 BLUEPRINT_CACHE = {}
 
-# Tab 1 – individual gradients
+# Tab 1 -- individual gradients (combined only)
 INDIVIDUAL_GRADIENTS = {}
 INDIVIDUAL_GRADIENT_INFO = []
 
-# Tab 2 – cross-species gradient maps on surfaces
+# Tab 2 -- cross-species gradient maps on surfaces
 CROSS_SPECIES_GRADIENT_MAPS = {}
 N_CROSS_SPECIES_GRADIENTS = 0
 CROSS_SPECIES_SPECIES_LIST = []
 
-# Tab 3 – explorer scatter data
+# Tab 3 -- explorer
 df_global = pd.DataFrame()
 PLOT_CONFIGS_SCATTER_GLOBAL = {}
 SPECIES_SYMBOLS_GLOBAL = {}
 TRACT_NAMES_GLOBAL = []
 N_TRACTS_EXPECTED_GLOBAL = 0
 AVAILABLE_EXPLORER_GRADIENTS = []
+
+# Per-species DataFrames for the explorer data-source selector
+df_by_source = {}
+grad_cols_by_source = {}
+
+# Per-species individual gradient maps for Surface Plot mode
+INDIVIDUAL_GRADIENT_MAPS = {}
+N_INDIVIDUAL_GRADS_BY_SPECIES = {}
 
 EMPTY_SURFACE_FIG = None
 EMPTY_SPIDER = None
@@ -204,13 +219,14 @@ def load_mask(species, hemisphere):
 
 
 def load_individual_gradients():
-    """Scan for individual gradient GIFTIs.
+    """Scan for individual gradient GIFTIs (combined only).
 
     Supports two directory layouts:
-      - Nested: {dir}/{species}/all_computed_gradients_*.func.gii
-      - Flat:   {dir}/all_computed_gradients_*.func.gii
+      - Nested: {dir}/{species}/all_computed_gradients_*_COMBINED_*.func.gii
+      - Flat:   {dir}/all_computed_gradients_*_COMBINED_*.func.gii
     """
     global INDIVIDUAL_GRADIENTS, INDIVIDUAL_GRADIENT_INFO
+    global INDIVIDUAL_GRADIENT_MAPS, N_INDIVIDUAL_GRADS_BY_SPECIES
 
     if not os.path.exists(INDIVIDUAL_GRAD_DIR_GLOBAL):
         print("Individual gradient directory not found - Tab 1 will be empty.")
@@ -236,26 +252,15 @@ def load_individual_gradients():
         fname = os.path.basename(fpath)
         base = fname.replace(".func.gii", "").replace("all_computed_gradients_", "")
 
-        # Parse species, hemisphere, and analysis type from filename.
-        # Two patterns:
-        #   {species}_COMBINED_{hem}   -> combined analysis
-        #   {species}_{hem}_SEPARATE   -> separate analysis
-        species = hem = analysis_type = None
+        # Only load combined analysis
+        if "_COMBINED_" not in base:
+            continue
 
-        if "_COMBINED_" in base:
-            parts = base.split("_COMBINED_")
-            species = parts[0].lower()
-            hem = parts[1] if len(parts) > 1 else None
-            analysis_type = "combined"
-        elif "_SEPARATE" in base:
-            rest = base.replace("_SEPARATE", "")
-            parts = rest.rsplit("_", 1)
-            if len(parts) == 2:
-                species = parts[0].lower()
-                hem = parts[1]
-            analysis_type = "separate"
+        parts = base.split("_COMBINED_")
+        species = parts[0].lower()
+        hem = parts[1] if len(parts) > 1 else None
 
-        if not species or not hem or not analysis_type:
+        if not species or not hem:
             continue
 
         try:
@@ -263,13 +268,13 @@ def load_individual_gradients():
             n_grads = len(img.darrays)
             grad_data = np.column_stack([d.data for d in img.darrays])
 
-            key = (species, analysis_type)
-            INDIVIDUAL_GRADIENTS.setdefault(key, {})[hem] = grad_data
+            INDIVIDUAL_GRADIENTS.setdefault(species, {})[hem] = grad_data
+            INDIVIDUAL_GRADIENT_MAPS[(species, hem)] = grad_data
+            N_INDIVIDUAL_GRADS_BY_SPECIES[species] = n_grads
 
             existing = [
                 info for info in INDIVIDUAL_GRADIENT_INFO
                 if info["species"] == species
-                and info["analysis_type"] == analysis_type
             ]
             if existing:
                 if hem not in existing[0]["hems"]:
@@ -277,13 +282,48 @@ def load_individual_gradients():
             else:
                 INDIVIDUAL_GRADIENT_INFO.append({
                     "species": species,
-                    "analysis_type": analysis_type,
                     "hems": [hem],
                     "n_grads": n_grads,
                 })
-            print(f"  Loaded: {species} {hem} {analysis_type} ({n_grads} gradients)")
+            print(f"  Loaded: {species} {hem} combined ({n_grads} gradients)")
         except Exception as e:
             print(f"  Error loading {fpath}: {e}")
+
+    # Build per-species DataFrames for the explorer
+    _build_per_species_explorer_data()
+
+
+def _build_per_species_explorer_data():
+    """Build DataFrames for per-species explorer from individual gradient maps."""
+    global df_by_source, grad_cols_by_source
+
+    for species, n_grads in N_INDIVIDUAL_GRADS_BY_SPECIES.items():
+        records = []
+        for hem in ("L", "R"):
+            gmap = INDIVIDUAL_GRADIENT_MAPS.get((species, hem))
+            if gmap is None:
+                continue
+            mask = load_mask(species, hem)
+            if mask is None:
+                mask = np.any(gmap != 0.0, axis=1) & np.all(np.isfinite(gmap), axis=1)
+            tl_indices = np.where(mask)[0]
+            for vtx_id in tl_indices:
+                rec = {
+                    "species": species, "hem": hem,
+                    "species_hem": f"{species}_{hem}",
+                    "orig_vtx_id": int(vtx_id),
+                }
+                for d in range(n_grads):
+                    rec[f"g{d + 1}"] = float(gmap[vtx_id, d])
+                records.append(rec)
+
+        if records:
+            df_sp = pd.DataFrame.from_records(records)
+            df_sp["df_idx"] = df_sp.index
+            df_by_source[species] = df_sp
+            grad_cols_by_source[species] = [f"g{i + 1}" for i in range(n_grads)]
+            print(f"  Explorer data for {species}: {len(df_sp)} vertices, "
+                  f"{n_grads} gradients")
 
 
 def load_cross_species_from_npz(npz_file_path):
@@ -404,6 +444,8 @@ def load_cross_species_from_npz(npz_file_path):
     if not df_global.empty:
         df_global["df_idx"] = df_global.index
         AVAILABLE_EXPLORER_GRADIENTS = [f"g{i + 1}" for i in range(n_dims)]
+        df_by_source["cross_species"] = df_global
+        grad_cols_by_source["cross_species"] = list(AVAILABLE_EXPLORER_GRADIENTS)
     return True
 
 
@@ -426,8 +468,6 @@ def load_cross_species_gradient_giftis(species_list, target_k_species):
 
     Looks in CROSS_SPECIES_GRAD_DIR_GLOBAL for files matching:
       {species}_{hem}_from_cs_gradients_k_{target_k_species}.func.gii
-
-    These provide per-vertex gradient maps for Tab 2 (surface rendering).
     """
     global CROSS_SPECIES_GRADIENT_MAPS, N_CROSS_SPECIES_GRADIENTS
     global CROSS_SPECIES_SPECIES_LIST
@@ -507,13 +547,7 @@ def make_surface_with_gradient(
     colorscale="RdBu_r", cmin=None, cmax=None,
     show_colorbar=True, height=450,
 ):
-    """3D brain surface coloured by per-vertex gradient values.
-
-    The TL and non-TL regions are rendered as separate Mesh3d traces with
-    independent, re-indexed vertex arrays so they share no geometry.  The TL
-    trace uses ``intensity`` / ``intensitymode="vertex"`` for GPU-level
-    colorscale interpolation.
-    """
+    """3D brain surface coloured by per-vertex gradient values."""
     vertices, faces = load_surface(species, hemisphere)
     if vertices is None:
         return _empty_fig(f"Surface not found: {species} {hemisphere}", height)
@@ -591,8 +625,33 @@ def make_surface_with_gradient(
     return fig
 
 
+def make_surface_with_gradient_and_highlight(
+    species, hemisphere, gradient_values, title="",
+    colorscale="RdBu_r", cmin=None, cmax=None,
+    show_colorbar=True, height=350, highlight_vtx_id=None,
+):
+    """3D brain surface with gradient colours AND an optional vertex highlight."""
+    fig = make_surface_with_gradient(
+        species, hemisphere, gradient_values, title,
+        colorscale=colorscale, cmin=cmin, cmax=cmax,
+        show_colorbar=show_colorbar, height=height,
+    )
+
+    if highlight_vtx_id is not None:
+        vertices, _ = load_surface(species, hemisphere)
+        if vertices is not None and 0 <= int(highlight_vtx_id) < len(vertices):
+            vtx = vertices[int(highlight_vtx_id)]
+            fig.add_trace(go.Scatter3d(
+                x=[vtx[0]], y=[vtx[1]], z=[vtx[2]], mode="markers",
+                marker=dict(size=8, color="yellow", line=dict(width=2, color="black")),
+                hoverinfo="skip",
+            ))
+
+    return fig
+
+
 def make_surface_plot_highlight(species, hemisphere, highlight_vtx_id=None, title="Surface"):
-    """Grey brain surface with an optional highlighted vertex marker (Tab 3)."""
+    """Grey brain surface with an optional highlighted vertex marker."""
     vertices, faces = load_surface(species, hemisphere)
     if vertices is None:
         return _empty_fig(f"Surface not found: {species} {hemisphere}", 350)
@@ -634,15 +693,11 @@ def _load_blueprint(species, hemisphere):
     if cache_key in BLUEPRINT_CACHE:
         return BLUEPRINT_CACHE[cache_key]
 
-    # Try multiple filename conventions:
-    #   original:  average_{species}_blueprint.{hem}_temporal_lobe_masked.func.gii
-    #   PA style:  average_{species}_blueprint_{hem}_temporal_lobe.func.gii
     bp_file_patterns = [
         f"average_{species}_blueprint.{hemisphere}_temporal_lobe_masked.func.gii",
         f"average_{species}_blueprint_{hemisphere}_temporal_lobe.func.gii",
     ]
 
-    # Try nested layout ({dir}/{species}/...) and flat ({dir}/...)
     candidates = []
     for bp_file in bp_file_patterns:
         candidates.append(os.path.join(AVERAGE_BP_DIR_GLOBAL, species, bp_file))
@@ -702,9 +757,16 @@ def make_scatter(
     x_grad="g1", y_grad="g2",
     selected_df_idx=None, closest_df_idx=None,
     xaxis_range=None, yaxis_range=None,
+    df_source=None, plot_configs=None, species_symbols=None,
 ):
     """Main scatter plot with marginal histograms for the explorer tab."""
-    if df_global.empty or x_grad not in df_global.columns or y_grad not in df_global.columns:
+    df = df_source if df_source is not None else df_global
+    if plot_configs is None:
+        plot_configs = PLOT_CONFIGS_SCATTER_GLOBAL
+    if species_symbols is None:
+        species_symbols = SPECIES_SYMBOLS_GLOBAL
+
+    if df.empty or x_grad not in df.columns or y_grad not in df.columns:
         return _empty_fig("No data loaded.", 950)
 
     fig = make_subplots(
@@ -715,9 +777,8 @@ def make_scatter(
                [{"type": "scattergl"}, {"type": "histogram"}]],
     )
 
-    # Marginal histograms
-    for sh_key, cfg in PLOT_CONFIGS_SCATTER_GLOBAL.items():
-        grp = df_global[df_global["species_hem"] == sh_key]
+    for sh_key, cfg in plot_configs.items():
+        grp = df[df["species_hem"] == sh_key]
         if grp.empty:
             continue
         fig.add_trace(go.Histogram(
@@ -729,10 +790,9 @@ def make_scatter(
             opacity=0.8, showlegend=False,
         ), row=2, col=2)
 
-    # Main scatter
     legend_added = set()
-    for sh_key, grp in df_global.groupby("species_hem"):
-        cfg = PLOT_CONFIGS_SCATTER_GLOBAL.get(sh_key, {})
+    for sh_key, grp in df.groupby("species_hem"):
+        cfg = plot_configs.get(sh_key, {})
         label = cfg.get("label")
         show_leg = label and label not in legend_added
         if show_leg:
@@ -744,7 +804,7 @@ def make_scatter(
                 size=8, opacity=0.88,
                 line=dict(width=1, color="black"),
                 color=cfg.get("color"),
-                symbol=SPECIES_SYMBOLS_GLOBAL.get(grp["species"].iloc[0]),
+                symbol=species_symbols.get(grp["species"].iloc[0]),
             ),
             name=label, showlegend=bool(show_leg),
             customdata=np.stack(
@@ -757,9 +817,8 @@ def make_scatter(
             ),
         ), row=2, col=1)
 
-    # Highlight selected point
-    if selected_df_idx is not None:
-        row = df_global.loc[selected_df_idx]
+    if selected_df_idx is not None and selected_df_idx in df.index:
+        row = df.loc[selected_df_idx]
         fig.add_trace(go.Scatter(
             x=[row[x_grad]], y=[row[y_grad]], mode="markers",
             marker=dict(size=19, color="black", line=dict(width=4, color="yellow"), symbol="x"),
@@ -772,10 +831,9 @@ def make_scatter(
             ),
         ), row=2, col=1)
 
-    # Highlight closest-neighbour point
-    if closest_df_idx is not None:
-        row = df_global.loc[closest_df_idx]
-        clr = PLOT_CONFIGS_SCATTER_GLOBAL.get(
+    if closest_df_idx is not None and closest_df_idx in df.index:
+        row = df.loc[closest_df_idx]
+        clr = plot_configs.get(
             f"{row['species']}_{row['hem']}", {}
         ).get("color", "grey")
         fig.add_trace(go.Scatter(
@@ -794,13 +852,61 @@ def make_scatter(
     y_label = f"Gradient {y_grad[1:]}" if y_grad.startswith("g") else y_grad
     fig.update_layout(
         height=950,
-        title_text=f"Cross-Species Temporal Lobe Embedding ({x_label} vs {y_label})",
+        title_text=f"Temporal Lobe Embedding ({x_label} vs {y_label})",
         uirevision=True,
         legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
     )
     fig.update_xaxes(title_text=x_label, row=2, col=1, range=xaxis_range)
     fig.update_yaxes(title_text=y_label, row=2, col=1, range=yaxis_range)
     return fig
+
+
+# ===================================================================
+#  Helper: resolve the right gradient maps for explorer surface mode
+# ===================================================================
+
+def _get_explorer_surface_data(data_source, grad_idx, colorscale):
+    """Return a list of (species, hem, values, title, cmin, cmax) tuples."""
+    results = []
+
+    if data_source == "cross_species":
+        species_order = ["chimpanzee", "human"]
+        maps = CROSS_SPECIES_GRADIENT_MAPS
+        n_grads = N_CROSS_SPECIES_GRADIENTS
+    else:
+        species_order = [data_source]
+        maps = {(s, h): v for (s, h), v in INDIVIDUAL_GRADIENT_MAPS.items()
+                if s == data_source}
+        n_grads = N_INDIVIDUAL_GRADS_BY_SPECIES.get(data_source, 0)
+
+    if grad_idx is None or grad_idx >= n_grads:
+        return results
+
+    extremes = []
+    for (s, h), gmap in maps.items():
+        if s not in species_order:
+            continue
+        if grad_idx < gmap.shape[1]:
+            col = gmap[:, grad_idx]
+            m = load_mask(s, h)
+            if m is None:
+                m = (col != 0.0) & np.isfinite(col)
+            roi = col[m & np.isfinite(col)]
+            if roi.size > 0:
+                extremes.extend([float(roi.min()), float(roi.max())])
+
+    shared_min = min(extremes) if extremes else -1.0
+    shared_max = max(extremes) if extremes else 1.0
+
+    for species in species_order:
+        for hem in ("L", "R"):
+            gmap = maps.get((species, hem))
+            if gmap is not None and grad_idx < gmap.shape[1]:
+                values = gmap[:, grad_idx]
+                title = f"{species.capitalize()} {hem}"
+                results.append((species, hem, values, title, shared_min, shared_max))
+
+    return results
 
 
 # ===================================================================
@@ -814,7 +920,7 @@ def _no_data_message(text):
 
 
 def create_tab1_layout():
-    """Tab 1 - Individual Gradients on surfaces."""
+    """Tab 1 - Individual Gradients on surfaces (combined only)."""
     if not INDIVIDUAL_GRADIENT_INFO:
         return _no_data_message(
             "No individual gradient data found. Run Script 3 first to generate gradient files."
@@ -822,8 +928,8 @@ def create_tab1_layout():
 
     dataset_options = []
     for info in INDIVIDUAL_GRADIENT_INFO:
-        label = f"{info['species'].capitalize()} ({info['analysis_type'].capitalize()})"
-        value = f"{info['species']}|{info['analysis_type']}"
+        label = f"{info['species'].capitalize()}"
+        value = info['species']
         dataset_options.append({"label": label, "value": value})
 
     default_ds = dataset_options[0]["value"]
@@ -832,10 +938,10 @@ def create_tab1_layout():
     return html.Div([
         html.Div([
             html.Div([
-                html.Label("Dataset:", style={"fontWeight": "bold", "marginRight": "8px"}),
+                html.Label("Species:", style={"fontWeight": "bold", "marginRight": "8px"}),
                 dcc.Dropdown(
                     id="tab1-dataset", options=dataset_options,
-                    value=default_ds, clearable=False, style={"width": "280px"},
+                    value=default_ds, clearable=False, style={"width": "220px"},
                 ),
             ], style={"display": "flex", "alignItems": "center"}),
             html.Div([
@@ -897,8 +1003,25 @@ def create_tab2_layout():
     ])
 
 
+def _build_data_source_options():
+    """Build the dropdown options for the explorer data-source selector."""
+    options = []
+    if "cross_species" in df_by_source:
+        options.append({"label": "Cross-Species", "value": "cross_species"})
+    for species in sorted(N_INDIVIDUAL_GRADS_BY_SPECIES.keys()):
+        if species in df_by_source:
+            options.append({"label": species.capitalize(), "value": species})
+    return options
+
+
+def _build_grad_options(source_key):
+    """Gradient dropdown options for the given data source."""
+    cols = grad_cols_by_source.get(source_key, AVAILABLE_EXPLORER_GRADIENTS)
+    return [{"label": f"Gradient {g[1:]}", "value": g} for g in cols]
+
+
 def create_tab3_layout():
-    """Tab 3 - Interactive Explorer (scatter + detail panels)."""
+    """Tab 3 - Interactive Explorer (scatter + surface modes)."""
     global EMPTY_SPIDER, EMPTY_SURFACE_FIG
     EMPTY_SPIDER = go.Figure(
         go.Scatterpolar(r=[], theta=[]),
@@ -910,109 +1033,193 @@ def create_tab3_layout():
         "plot_bgcolor": "rgba(0,0,0,0)",
     })
 
-    if df_global.empty:
+    has_any_data = bool(df_by_source)
+    if not has_any_data:
         return _no_data_message(
-            "No cross-species embedding data found. Run Scripts 5 & 6 first."
+            "No gradient data found. Run Scripts 3, 5 & 6 to generate data."
         )
 
-    grad_options = [
-        {"label": f"Gradient {g[1:]}", "value": g}
-        for g in AVAILABLE_EXPLORER_GRADIENTS
-    ]
-    default_x = AVAILABLE_EXPLORER_GRADIENTS[0] if AVAILABLE_EXPLORER_GRADIENTS else "g1"
-    default_y = (
-        AVAILABLE_EXPLORER_GRADIENTS[1]
-        if len(AVAILABLE_EXPLORER_GRADIENTS) > 1
-        else default_x
-    )
+    data_source_options = _build_data_source_options()
+    default_source = data_source_options[0]["value"] if data_source_options else "cross_species"
+    grad_options = _build_grad_options(default_source)
+    default_x = grad_options[0]["value"] if grad_options else "g1"
+    default_y = grad_options[1]["value"] if len(grad_options) > 1 else default_x
 
     return html.Div([
         dcc.Store(id="zoom-state", data=None),
         dcc.Store(id="selected-idx", data=None),
+        dcc.Store(id="surf-selected-info", data=None),
 
-        # Gradient-axis selectors
+        # ---- Top control bar ----
         html.Div([
             html.Div([
-                html.Label("X-Axis:", style={"fontWeight": "bold", "marginRight": "8px"}),
-                dcc.Dropdown(
-                    id="explorer-x-grad", options=grad_options,
-                    value=default_x, clearable=False, style={"width": "160px"},
+                html.Label("Display Mode:", style={"fontWeight": "bold", "marginRight": "8px"}),
+                dcc.RadioItems(
+                    id="explorer-display-mode",
+                    options=[
+                        {"label": "Scatter Plot", "value": "scatter"},
+                        {"label": "Surface Plot", "value": "surface"},
+                    ],
+                    value="scatter",
+                    inline=True,
+                    style={"display": "flex", "gap": "16px"},
+                    inputStyle={"marginRight": "4px"},
                 ),
             ], style={"display": "flex", "alignItems": "center"}),
             html.Div([
-                html.Label("Y-Axis:", style={"fontWeight": "bold", "marginRight": "8px"}),
+                html.Label("Data Source:", style={"fontWeight": "bold", "marginRight": "8px"}),
                 dcc.Dropdown(
-                    id="explorer-y-grad", options=grad_options,
-                    value=default_y, clearable=False, style={"width": "160px"},
+                    id="explorer-data-source",
+                    options=data_source_options,
+                    value=default_source,
+                    clearable=False,
+                    style={"width": "200px"},
                 ),
             ], style={"display": "flex", "alignItems": "center"}),
-        ], style={"display": "flex", "gap": "24px", "padding": "16px 16px 0 16px"}),
+        ], style={
+            "display": "flex", "gap": "32px", "padding": "16px",
+            "alignItems": "center", "flexWrap": "wrap",
+            "borderBottom": "1px solid #ddd", "marginBottom": "8px",
+        }),
 
-        # Main grid: scatter on left, detail panels on right
-        html.Div([
-            # Left column - scatter plot
-            dcc.Graph(
-                id="scatter-g",
-                figure=make_scatter(default_x, default_y),
-                config={"scrollZoom": False},
-            ),
-            # Right column - clicked point + neighbour details
+        # ========================================================
+        #  SCATTER PLOT MODE
+        # ========================================================
+        html.Div(id="scatter-mode-container", children=[
             html.Div([
                 html.Div([
-                    html.H4("Clicked Point", style={"margin": "0 0 4px 0"}),
-                    html.Div([
-                        dcc.Graph(id="clicked-spider", figure=EMPTY_SPIDER,
-                                  style={"width": "48%"}, config={"scrollZoom": False}),
-                        dcc.Graph(id="clicked-surface", figure=EMPTY_SURFACE_FIG,
-                                  style={"width": "48%"}, config={"scrollZoom": False}),
-                    ], style={"display": "flex", "justifyContent": "space-between"}),
-                ]),
-                # Distance / match mode controls
+                    html.Label("X-Axis:", style={"fontWeight": "bold", "marginRight": "8px"}),
+                    dcc.Dropdown(
+                        id="explorer-x-grad", options=grad_options,
+                        value=default_x, clearable=False, style={"width": "160px"},
+                    ),
+                ], style={"display": "flex", "alignItems": "center"}),
+                html.Div([
+                    html.Label("Y-Axis:", style={"fontWeight": "bold", "marginRight": "8px"}),
+                    dcc.Dropdown(
+                        id="explorer-y-grad", options=grad_options,
+                        value=default_y, clearable=False, style={"width": "160px"},
+                    ),
+                ], style={"display": "flex", "alignItems": "center"}),
+            ], style={"display": "flex", "gap": "24px", "padding": "8px 16px 0 16px"}),
+
+            html.Div([
+                dcc.Graph(
+                    id="scatter-g",
+                    figure=_empty_fig("Loading...", 950),
+                    config={"scrollZoom": False},
+                ),
                 html.Div([
                     html.Div([
-                        html.Label("Distance Mode:",
-                                   style={"fontWeight": "bold", "marginRight": "8px"}),
-                        dcc.Dropdown(
-                            id="distance-mode",
-                            options=[
-                                {"label": "Euclidean", "value": "euclidean"},
-                                {"label": "X-axis only", "value": "x_only"},
-                                {"label": "Y-axis only", "value": "y_only"},
-                            ],
-                            value="euclidean", clearable=False, style={"width": "160px"},
-                        ),
-                    ], style={"display": "flex", "alignItems": "center"}),
+                        html.H4("Clicked Point", style={"margin": "0 0 4px 0"}),
+                        html.Div([
+                            dcc.Graph(id="clicked-spider", figure=EMPTY_SPIDER,
+                                      style={"width": "48%"}, config={"scrollZoom": False}),
+                            dcc.Graph(id="clicked-surface", figure=EMPTY_SURFACE_FIG,
+                                      style={"width": "48%"}, config={"scrollZoom": False}),
+                        ], style={"display": "flex", "justifyContent": "space-between"}),
+                    ]),
                     html.Div([
-                        html.Label("Match Mode:",
-                                   style={"fontWeight": "bold", "marginRight": "8px"}),
-                        dcc.Dropdown(
-                            id="match-mode",
-                            options=[
-                                {"label": "Cross-Species", "value": "different"},
-                                {"label": "Same Species", "value": "same"},
-                            ],
-                            value="different", clearable=False, style={"width": "160px"},
-                        ),
-                    ], style={"display": "flex", "alignItems": "center"}),
-                ], style={
-                    "display": "grid", "grid-template-columns": "1fr 1fr",
-                    "gap": "20px", "padding": "12px 0",
+                        html.Div([
+                            html.Label("Distance Mode:",
+                                       style={"fontWeight": "bold", "marginRight": "8px"}),
+                            dcc.Dropdown(
+                                id="distance-mode",
+                                options=[
+                                    {"label": "Euclidean", "value": "euclidean"},
+                                    {"label": "X-axis only", "value": "x_only"},
+                                    {"label": "Y-axis only", "value": "y_only"},
+                                ],
+                                value="euclidean", clearable=False, style={"width": "160px"},
+                            ),
+                        ], style={"display": "flex", "alignItems": "center"}),
+                        html.Div([
+                            html.Label("Match Mode:",
+                                       style={"fontWeight": "bold", "marginRight": "8px"}),
+                            dcc.Dropdown(
+                                id="match-mode",
+                                options=[
+                                    {"label": "Cross-Species", "value": "different"},
+                                    {"label": "Same Species", "value": "same"},
+                                ],
+                                value="different", clearable=False, style={"width": "160px"},
+                            ),
+                        ], style={"display": "flex", "alignItems": "center"}),
+                    ], style={
+                        "display": "grid", "grid-template-columns": "1fr 1fr",
+                        "gap": "20px", "padding": "12px 0",
+                    }),
+                    html.Div([
+                        html.H4("Closest Neighbor", style={"margin": "0 0 4px 0"}),
+                        html.Div([
+                            dcc.Graph(id="closest-spider", figure=EMPTY_SPIDER,
+                                      style={"width": "48%"}, config={"scrollZoom": False}),
+                            dcc.Graph(id="closest-surface", figure=EMPTY_SURFACE_FIG,
+                                      style={"width": "48%"}, config={"scrollZoom": False}),
+                        ], style={"display": "flex", "justifyContent": "space-between"}),
+                    ]),
+                ], style={"display": "flex", "flexDirection": "column", "gap": "12px"}),
+            ], style={
+                "display": "grid",
+                "gridTemplateColumns": "minmax(700px, 1fr) 850px",
+                "gap": "20px", "width": "100%",
+            }),
+        ]),
+
+        # ========================================================
+        #  SURFACE PLOT MODE
+        # ========================================================
+        html.Div(id="surface-mode-container", style={"display": "none"}, children=[
+            html.Div([
+                html.Div([
+                    html.Label("Left Gradient:", style={"fontWeight": "bold", "marginRight": "8px"}),
+                    dcc.Dropdown(
+                        id="surf-left-grad", options=grad_options,
+                        value=default_x, clearable=False, style={"width": "160px"},
+                    ),
+                ], style={"display": "flex", "alignItems": "center"}),
+                html.Div([
+                    html.Label("Right Gradient:", style={"fontWeight": "bold", "marginRight": "8px"}),
+                    dcc.Dropdown(
+                        id="surf-right-grad", options=grad_options,
+                        value=default_y, clearable=False, style={"width": "160px"},
+                    ),
+                ], style={"display": "flex", "alignItems": "center"}),
+                html.Div([
+                    html.Label("Colorscale:", style={"fontWeight": "bold", "marginRight": "8px"}),
+                    dcc.Dropdown(
+                        id="surf-colorscale", options=COLORSCALE_OPTIONS,
+                        value="RdBu_r", clearable=False, style={"width": "200px"},
+                    ),
+                ], style={"display": "flex", "alignItems": "center"}),
+            ], style={
+                "display": "flex", "gap": "24px", "padding": "8px 16px",
+                "flexWrap": "wrap", "alignItems": "center",
+            }),
+
+            html.Div([
+                html.Div(id="surf-left-container", style={
+                    "flex": "1", "display": "flex", "flexDirection": "column", "gap": "4px",
                 }),
                 html.Div([
-                    html.H4("Closest Neighbor", style={"margin": "0 0 4px 0"}),
-                    html.Div([
-                        dcc.Graph(id="closest-spider", figure=EMPTY_SPIDER,
-                                  style={"width": "48%"}, config={"scrollZoom": False}),
-                        dcc.Graph(id="closest-surface", figure=EMPTY_SURFACE_FIG,
-                                  style={"width": "48%"}, config={"scrollZoom": False}),
-                    ], style={"display": "flex", "justifyContent": "space-between"}),
-                ]),
-            ], style={"display": "flex", "flexDirection": "column", "gap": "12px"}),
-        ], style={
-            "display": "grid",
-            "gridTemplateColumns": "minmax(700px, 1fr) 850px",
-            "gap": "20px", "width": "100%",
-        }),
+                    html.H4("Connectivity Profile", style={
+                        "margin": "0 0 8px 0", "textAlign": "center",
+                    }),
+                    dcc.Graph(id="surf-spider", figure=EMPTY_SPIDER, config={"scrollZoom": False}),
+                ], style={
+                    "width": "380px", "display": "flex", "flexDirection": "column",
+                    "alignItems": "center", "justifyContent": "center",
+                    "padding": "0 8px",
+                    "borderLeft": "1px solid #eee", "borderRight": "1px solid #eee",
+                }),
+                html.Div(id="surf-right-container", style={
+                    "flex": "1", "display": "flex", "flexDirection": "column", "gap": "4px",
+                }),
+            ], style={
+                "display": "flex", "gap": "8px", "width": "100%",
+                "minHeight": "500px",
+            }),
+        ]),
     ])
 
 
@@ -1065,15 +1272,12 @@ def create_app_layout():
     Input("tab1-dataset", "value"),
     prevent_initial_call=True,
 )
-def update_tab1_gradient_options(dataset_value):
-    """Refresh the gradient-number dropdown when the dataset selection changes."""
-    if not dataset_value:
+def update_tab1_gradient_options(species):
+    """Refresh the gradient-number dropdown when the species selection changes."""
+    if not species:
         return [], None
-    species, analysis_type = dataset_value.split("|", 1)
     info = next(
-        (i for i in INDIVIDUAL_GRADIENT_INFO
-         if i["species"] == species and i["analysis_type"] == analysis_type),
-        None,
+        (i for i in INDIVIDUAL_GRADIENT_INFO if i["species"] == species), None,
     )
     if not info:
         return [], None
@@ -1088,53 +1292,44 @@ def update_tab1_gradient_options(dataset_value):
     Input("tab1-gradient-num", "value"),
     Input("tab1-colorscale", "value"),
 )
-def update_tab1_surfaces(dataset_value, grad_idx, colorscale):
+def update_tab1_surfaces(species, grad_idx, colorscale):
     """Render L and R hemisphere surfaces coloured by the selected gradient."""
-    empty = _empty_fig("Select a dataset and gradient.", 500)
-    if not dataset_value or grad_idx is None:
+    empty = _empty_fig("Select a species and gradient.", 500)
+    if not species or grad_idx is None:
         return empty, empty
-
-    species, analysis_type = dataset_value.split("|", 1)
-    key = (species, analysis_type)
 
     vals_by_hem = {}
     for hem in ("L", "R"):
-        gdata = INDIVIDUAL_GRADIENTS.get(key, {}).get(hem)
+        gdata = INDIVIDUAL_GRADIENTS.get(species, {}).get(hem)
         if gdata is not None and grad_idx < gdata.shape[1]:
             vals_by_hem[hem] = gdata[:, grad_idx]
 
-    # For "combined" analysis the hemispheres share one colour range;
-    # for "separate" analysis each hemisphere was computed independently
-    # and gets its own colour bar with its own range.
-    use_shared_range = (analysis_type == "combined")
-
-    if use_shared_range:
-        all_roi_vals = []
-        for hem, v in vals_by_hem.items():
-            m = load_mask(species, hem)
-            if m is None:
-                m = (v != 0.0) & np.isfinite(v)
-            all_roi_vals.append(v[m & np.isfinite(v)])
-        all_roi = np.concatenate(all_roi_vals) if all_roi_vals else np.array([])
-        if all_roi.size > 0:
-            shared_min = float(all_roi.min())
-            shared_max = float(all_roi.max())
-        else:
-            shared_min, shared_max = -1.0, 1.0
+    # Combined analysis always uses shared colour range
+    all_roi_vals = []
+    for hem, v in vals_by_hem.items():
+        m = load_mask(species, hem)
+        if m is None:
+            m = (v != 0.0) & np.isfinite(v)
+        all_roi_vals.append(v[m & np.isfinite(v)])
+    all_roi = np.concatenate(all_roi_vals) if all_roi_vals else np.array([])
+    if all_roi.size > 0:
+        shared_min = float(all_roi.min())
+        shared_max = float(all_roi.max())
+    else:
+        shared_min, shared_max = -1.0, 1.0
 
     figs = []
     for hem in ("L", "R"):
         if hem in vals_by_hem:
-            title = f"{species.capitalize()} {hem} - Gradient {grad_idx + 1} ({analysis_type})"
+            title = f"{species.capitalize()} {hem} - Gradient {grad_idx + 1}"
             fig = make_surface_with_gradient(
                 species, hem, vals_by_hem[hem], title,
                 colorscale=colorscale,
-                cmin=shared_min if use_shared_range else None,
-                cmax=shared_max if use_shared_range else None,
+                cmin=shared_min, cmax=shared_max,
                 show_colorbar=True, height=500,
             )
         else:
-            fig = _empty_fig(f"No data: {species} {hem} ({analysis_type})", 500)
+            fig = _empty_fig(f"No data: {species} {hem}", 500)
         figs.append(fig)
 
     return figs[0], figs[1]
@@ -1154,7 +1349,6 @@ def update_tab2_surfaces(grad_idx, colorscale):
     if grad_idx is None:
         return html.P("Select a gradient.", style={"color": "grey", "padding": "20px"})
 
-    # Shared colour range across every species/hemisphere
     extremes = []
     for (_s, _h), maps in CROSS_SPECIES_GRADIENT_MAPS.items():
         if grad_idx < maps.shape[1]:
@@ -1207,6 +1401,39 @@ def update_tab2_surfaces(grad_idx, colorscale):
 #  Callbacks - Tab 3  (Interactive Explorer)
 # ===================================================================
 
+# --- Toggle scatter / surface visibility ---
+@app.callback(
+    Output("scatter-mode-container", "style"),
+    Output("surface-mode-container", "style"),
+    Input("explorer-display-mode", "value"),
+)
+def toggle_explorer_mode(mode):
+    if mode == "surface":
+        return {"display": "none"}, {"display": "block"}
+    return {"display": "block"}, {"display": "none"}
+
+
+# --- Update gradient dropdowns when data source changes ---
+@app.callback(
+    Output("explorer-x-grad", "options"),
+    Output("explorer-x-grad", "value"),
+    Output("explorer-y-grad", "options"),
+    Output("explorer-y-grad", "value"),
+    Output("surf-left-grad", "options"),
+    Output("surf-left-grad", "value"),
+    Output("surf-right-grad", "options"),
+    Output("surf-right-grad", "value"),
+    Input("explorer-data-source", "value"),
+    prevent_initial_call=True,
+)
+def update_explorer_grad_options(data_source):
+    opts = _build_grad_options(data_source)
+    val_x = opts[0]["value"] if opts else "g1"
+    val_y = opts[1]["value"] if len(opts) > 1 else val_x
+    return opts, val_x, opts, val_y, opts, val_x, opts, val_y
+
+
+# --- Zoom persistence ---
 @app.callback(
     Output("zoom-state", "data"),
     Input("scatter-g", "relayoutData"),
@@ -1214,7 +1441,6 @@ def update_tab2_surfaces(grad_idx, colorscale):
     prevent_initial_call=True,
 )
 def save_zoom(relayoutData, old_zoom):
-    """Persist the user's zoom / pan state."""
     if relayoutData is None:
         return dash.no_update
     new_zoom = old_zoom or {}
@@ -1229,6 +1455,7 @@ def save_zoom(relayoutData, old_zoom):
     return new_zoom
 
 
+# --- Scatter mode: main interaction callback ---
 @app.callback(
     Output("selected-idx", "data"),
     Output("clicked-spider", "figure"),
@@ -1241,25 +1468,29 @@ def save_zoom(relayoutData, old_zoom):
     Input("match-mode", "value"),
     Input("explorer-x-grad", "value"),
     Input("explorer-y-grad", "value"),
+    Input("explorer-data-source", "value"),
     State("zoom-state", "data"),
     State("selected-idx", "data"),
     prevent_initial_call=True,
 )
-def handle_graph_interactions(
+def handle_scatter_interactions(
     clickData, distance_mode, match_mode, x_grad, y_grad,
-    zoom_state, current_idx,
+    data_source, zoom_state, current_idx,
 ):
-    """Main callback - point selection, neighbour finding, axis changes."""
+    """Main callback for the scatter-plot mode."""
     ctx = callback_context
     triggered_id = ctx.triggered[0]["prop_id"].split(".")[0]
 
-    # Reset selection when the user changes gradient axes
-    if triggered_id in ("explorer-x-grad", "explorer-y-grad"):
-        scatter = make_scatter(x_grad, y_grad)
+    df = df_by_source.get(data_source, df_global)
+    if df.empty:
+        empty_scatter = _empty_fig("No data for this source.", 950)
+        return None, EMPTY_SPIDER, EMPTY_SPIDER, EMPTY_SURFACE_FIG, EMPTY_SURFACE_FIG, empty_scatter
+
+    if triggered_id in ("explorer-x-grad", "explorer-y-grad", "explorer-data-source"):
+        scatter = make_scatter(x_grad, y_grad, df_source=df)
         return (None, EMPTY_SPIDER, EMPTY_SPIDER,
                 EMPTY_SURFACE_FIG, EMPTY_SURFACE_FIG, scatter)
 
-    # Toggle selection on click
     selected_idx = current_idx
     if triggered_id == "scatter-g" and clickData:
         pt = clickData["points"][0]
@@ -1273,17 +1504,16 @@ def handle_graph_interactions(
 
     zoom = zoom_state or {}
 
-    # Nothing selected -> clear details
-    if selected_idx is None:
+    if selected_idx is None or selected_idx not in df.index:
         scatter = make_scatter(
             x_grad, y_grad,
             xaxis_range=zoom.get("xaxis"), yaxis_range=zoom.get("yaxis"),
+            df_source=df,
         )
         return (None, EMPTY_SPIDER, EMPTY_SPIDER,
                 EMPTY_SURFACE_FIG, EMPTY_SURFACE_FIG, scatter)
 
-    # ------ Clicked-point details ------
-    sel = df_global.loc[selected_idx]
+    sel = df.loc[selected_idx]
     s_sp, s_hem, s_vtx = sel["species"], sel["hem"], sel["orig_vtx_id"]
     s_label = f"{s_sp.capitalize()} {s_hem} (vtx {s_vtx})"
     s_color = PLOT_CONFIGS_SCATTER_GLOBAL.get(f"{s_sp}_{s_hem}", {}).get("color")
@@ -1292,17 +1522,16 @@ def handle_graph_interactions(
     )
     clicked_surface = make_surface_plot_highlight(s_sp, s_hem, s_vtx, s_label)
 
-    # ------ Closest neighbour ------
     if match_mode == "different":
-        cand = df_global[df_global.species != s_sp]
+        cand = df[df.species != s_sp]
     else:
-        cand = df_global[(df_global.species == s_sp) & (df_global.df_idx != selected_idx)]
+        cand = df[(df.species == s_sp) & (df.df_idx != selected_idx)]
 
     closest_idx = None
     closest_spider = EMPTY_SPIDER
     closest_surface = EMPTY_SURFACE_FIG
 
-    if not cand.empty:
+    if not cand.empty and x_grad in df.columns and y_grad in df.columns:
         sel_coords = sel[[x_grad, y_grad]].values.reshape(1, -1)
         cand_coords = cand[[x_grad, y_grad]].values
 
@@ -1310,7 +1539,7 @@ def handle_graph_interactions(
             dists = euclidean_distances(sel_coords, cand_coords)[0]
         elif distance_mode == "x_only":
             dists = np.abs(cand_coords[:, 0] - sel_coords[0, 0])
-        else:  # y_only
+        else:
             dists = np.abs(cand_coords[:, 1] - sel_coords[0, 1])
 
         cr = cand.iloc[np.argmin(dists)]
@@ -1326,9 +1555,128 @@ def handle_graph_interactions(
     scatter = make_scatter(
         x_grad, y_grad, selected_idx, closest_idx,
         zoom.get("xaxis"), zoom.get("yaxis"),
+        df_source=df,
     )
     return (selected_idx, clicked_spider, closest_spider,
             clicked_surface, closest_surface, scatter)
+
+
+# --- Surface mode: render surfaces ---
+@app.callback(
+    Output("surf-left-container", "children"),
+    Output("surf-right-container", "children"),
+    Input("surf-left-grad", "value"),
+    Input("surf-right-grad", "value"),
+    Input("surf-colorscale", "value"),
+    Input("explorer-data-source", "value"),
+    Input("surf-selected-info", "data"),
+    prevent_initial_call=True,
+)
+def update_surface_mode_panels(
+    left_grad_str, right_grad_str, colorscale, data_source, sel_info,
+):
+    """Render the left and right surface panels for Surface Plot mode."""
+    highlight_species = sel_info.get("species") if sel_info else None
+    highlight_hem = sel_info.get("hem") if sel_info else None
+    highlight_vtx = sel_info.get("vtx") if sel_info else None
+
+    def _grad_idx(grad_str):
+        if grad_str and grad_str.startswith("g"):
+            try:
+                return int(grad_str[1:]) - 1
+            except ValueError:
+                pass
+        return 0
+
+    left_idx = _grad_idx(left_grad_str)
+    right_idx = _grad_idx(right_grad_str)
+
+    left_data = _get_explorer_surface_data(data_source, left_idx, colorscale)
+    right_data = _get_explorer_surface_data(data_source, right_idx, colorscale)
+
+    def _render_panel(surface_data, grad_str, side_id):
+        if not surface_data:
+            return [html.P("No data available.", style={"color": "grey", "padding": "20px"})]
+
+        grad_label = f"Gradient {grad_str[1:]}" if grad_str and grad_str.startswith("g") else grad_str
+        children = [
+            html.H4(grad_label, style={"margin": "4px 0 2px 8px", "textAlign": "center"}),
+        ]
+
+        for i, (species, hem, values, title, cmin, cmax) in enumerate(surface_data):
+            vtx_highlight = None
+            if (highlight_species == species and highlight_hem == hem
+                    and highlight_vtx is not None):
+                vtx_highlight = highlight_vtx
+
+            fig = make_surface_with_gradient_and_highlight(
+                species, hem, values, title,
+                colorscale=colorscale, cmin=cmin, cmax=cmax,
+                show_colorbar=(i == len(surface_data) - 1),
+                height=300 if len(surface_data) > 2 else 380,
+                highlight_vtx_id=vtx_highlight,
+            )
+            children.append(
+                dcc.Graph(id={"type": f"{side_id}-surface-graph", "index": f"{species}_{hem}"},
+                          figure=fig, config={"scrollZoom": False},
+                          style={"width": "100%"})
+            )
+
+        return children
+
+    left_children = _render_panel(left_data, left_grad_str, "left")
+    right_children = _render_panel(right_data, right_grad_str, "right")
+
+    return left_children, right_children
+
+
+# --- Surface mode: click on a surface to select a vertex ---
+@app.callback(
+    Output("surf-selected-info", "data"),
+    Output("surf-spider", "figure"),
+    Input({"type": "left-surface-graph", "index": dash.ALL}, "clickData"),
+    Input({"type": "right-surface-graph", "index": dash.ALL}, "clickData"),
+    State("surf-selected-info", "data"),
+    prevent_initial_call=True,
+)
+def handle_surface_click(left_clicks, right_clicks, current_sel):
+    """Handle click events on surface graphs in Surface Plot mode."""
+    ctx = callback_context
+    if not ctx.triggered:
+        return dash.no_update, dash.no_update
+
+    for trig in ctx.triggered:
+        prop_id = trig["prop_id"]
+        click_data = trig["value"]
+        if click_data is None:
+            continue
+
+        import json
+        try:
+            id_str = prop_id.split(".")[0]
+            id_dict = json.loads(id_str)
+            index_str = id_dict.get("index", "")
+        except (json.JSONDecodeError, AttributeError):
+            continue
+
+        parts = index_str.split("_", 1)
+        if len(parts) != 2:
+            continue
+        species, hem = parts
+
+        point = click_data["points"][0]
+        vtx_id = point.get("pointNumber")
+        if vtx_id is None:
+            continue
+
+        label = f"{species.capitalize()} {hem} (vtx {vtx_id})"
+        color = PLOT_CONFIGS_SCATTER_GLOBAL.get(f"{species}_{hem}", {}).get("color", "grey")
+        spider = make_spider(get_vertex_profile(species, hem, vtx_id), label, color)
+
+        sel_data = {"species": species, "hem": hem, "vtx": int(vtx_id)}
+        return sel_data, spider
+
+    return dash.no_update, dash.no_update
 
 
 # ===================================================================
@@ -1398,8 +1746,6 @@ def configure_and_load(
     npz_ok = load_cross_species_from_npz(npz_file_path)
 
     # Try loading pre-computed cross-species gradient GIFTIs.
-    # These override NPZ-reconstructed maps for Tab 2 when available,
-    # and provide Tab 2 data even if the NPZ failed.
     print("Loading cross-species gradient GIFTIs (Tab 2) ...")
     gii_ok = load_cross_species_gradient_giftis(species_list, target_k_species)
 
@@ -1421,8 +1767,6 @@ def configure_and_load(
 
 # ===================================================================
 #  PythonAnywhere auto-initialization
-#  When imported as a WSGI module (not run via __main__), configure
-#  using the PA_* constants defined at the top of this file.
 # ===================================================================
 _INITIALIZED = False
 
