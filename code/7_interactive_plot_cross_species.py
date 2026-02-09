@@ -13,14 +13,10 @@ Three tabs:
       Select a gradient number and see it rendered on every species / hemisphere.
 
   Tab 3 - Interactive Explorer:
-      Two display modes:
-        Scatter Plot - scatter-plot exploration of gradient space with marginal
-            histograms.  Click a point to see connectivity profile and nearest
-            neighbour.
-        Surface Plot - choose one gradient for the left panel and another for
-            the right, rendered on brain surfaces.  Click a vertex on either
-            side to see its connectivity profile; the corresponding vertex is
-            highlighted on the opposite panel.
+      Scatter-plot exploration of gradient space with marginal histograms.
+      Click a point to see connectivity profile and nearest neighbour.
+      A gradient surface panel shows one of the selected gradients rendered
+      on brain surfaces alongside the scatter plot.
       A data-source selector switches between chimpanzee-only, human-only, and
       cross-species gradient data.
 
@@ -865,7 +861,7 @@ def _build_grad_options(source_key):
 
 
 def create_tab3_layout():
-    """Tab 3 -- Interactive Explorer (scatter + surface modes)."""
+    """Tab 3 -- Interactive Explorer (scatter + gradient surface)."""
     global EMPTY_SPIDER, EMPTY_SURFACE_FIG
     EMPTY_SPIDER = go.Figure(
         go.Scatterpolar(r=[], theta=[]),
@@ -888,28 +884,14 @@ def create_tab3_layout():
     grad_options = _build_grad_options(default_source)
     default_x = grad_options[0]["value"] if grad_options else "g1"
     default_y = grad_options[1]["value"] if len(grad_options) > 1 else default_x
+    default_match = "different" if default_source == "cross_species" else "same"
 
     return html.Div([
         dcc.Store(id="zoom-state", data=None),
         dcc.Store(id="selected-idx", data=None),
-        dcc.Store(id="surf-selected-info", data=None),
 
         # ---- Top control bar ----
         html.Div([
-            html.Div([
-                html.Label("Display Mode:", style={"fontWeight": "bold", "marginRight": "8px"}),
-                dcc.RadioItems(
-                    id="explorer-display-mode",
-                    options=[
-                        {"label": "Scatter Plot", "value": "scatter"},
-                        {"label": "Surface Plot", "value": "surface"},
-                    ],
-                    value="scatter",
-                    inline=True,
-                    style={"display": "flex", "gap": "16px"},
-                    inputStyle={"marginRight": "4px"},
-                ),
-            ], style={"display": "flex", "alignItems": "center"}),
             html.Div([
                 html.Label("Data Source:", style={"fontWeight": "bold", "marginRight": "8px"}),
                 dcc.Dropdown(
@@ -920,150 +902,100 @@ def create_tab3_layout():
                     style={"width": "200px"},
                 ),
             ], style={"display": "flex", "alignItems": "center"}),
+            html.Div([
+                html.Label("X-Axis:", style={"fontWeight": "bold", "marginRight": "8px"}),
+                dcc.Dropdown(
+                    id="explorer-x-grad", options=grad_options,
+                    value=default_x, clearable=False, style={"width": "160px"},
+                ),
+            ], style={"display": "flex", "alignItems": "center"}),
+            html.Div([
+                html.Label("Y-Axis:", style={"fontWeight": "bold", "marginRight": "8px"}),
+                dcc.Dropdown(
+                    id="explorer-y-grad", options=grad_options,
+                    value=default_y, clearable=False, style={"width": "160px"},
+                ),
+            ], style={"display": "flex", "alignItems": "center"}),
+            html.Div([
+                html.Label("Show on Surface:", style={"fontWeight": "bold", "marginRight": "8px"}),
+                dcc.Dropdown(
+                    id="explorer-surface-grad", options=grad_options,
+                    value=default_x, clearable=False, style={"width": "160px"},
+                ),
+            ], style={"display": "flex", "alignItems": "center"}),
+            html.Div([
+                html.Label("Colorscale:", style={"fontWeight": "bold", "marginRight": "8px"}),
+                dcc.Dropdown(
+                    id="explorer-colorscale", options=COLORSCALE_OPTIONS,
+                    value="RdBu_r", clearable=False, style={"width": "200px"},
+                ),
+            ], style={"display": "flex", "alignItems": "center"}),
         ], style={
-            "display": "flex", "gap": "32px", "padding": "16px",
+            "display": "flex", "gap": "24px", "padding": "16px",
             "alignItems": "center", "flexWrap": "wrap",
             "borderBottom": "1px solid #ddd", "marginBottom": "8px",
         }),
 
-        # ========================================================
-        #  SCATTER PLOT MODE
-        # ========================================================
-        html.Div(id="scatter-mode-container", children=[
-            # Gradient-axis selectors
+        # Main grid: scatter on left, detail panels on right
+        html.Div([
+            # Left column -- scatter plot
+            dcc.Graph(id="scatter-g", figure=_empty_fig("Loading...", 950), config={"scrollZoom": False}),
+            # Right column -- clicked point + neighbour details
             html.Div([
                 html.Div([
-                    html.Label("X-Axis:", style={"fontWeight": "bold", "marginRight": "8px"}),
-                    dcc.Dropdown(
-                        id="explorer-x-grad", options=grad_options,
-                        value=default_x, clearable=False, style={"width": "160px"},
-                    ),
-                ], style={"display": "flex", "alignItems": "center"}),
-                html.Div([
-                    html.Label("Y-Axis:", style={"fontWeight": "bold", "marginRight": "8px"}),
-                    dcc.Dropdown(
-                        id="explorer-y-grad", options=grad_options,
-                        value=default_y, clearable=False, style={"width": "160px"},
-                    ),
-                ], style={"display": "flex", "alignItems": "center"}),
-            ], style={"display": "flex", "gap": "24px", "padding": "8px 16px 0 16px"}),
-
-            # Main grid: scatter on left, detail panels on right
-            html.Div([
-                # Left column -- scatter plot
-                dcc.Graph(id="scatter-g", figure=_empty_fig("Loading...", 950), config={"scrollZoom": False}),
-                # Right column -- clicked point + neighbour details
+                    html.H4("Clicked Point", style={"margin": "0 0 4px 0"}),
+                    html.Div([
+                        dcc.Graph(id="clicked-spider", figure=EMPTY_SPIDER, style={"width": "48%"}, config={"scrollZoom": False}),
+                        dcc.Graph(id="clicked-surface", figure=EMPTY_SURFACE_FIG, style={"width": "48%"}, config={"scrollZoom": False}),
+                    ], style={"display": "flex", "justifyContent": "space-between"}),
+                ]),
+                # Distance / match mode controls
                 html.Div([
                     html.Div([
-                        html.H4("Clicked Point", style={"margin": "0 0 4px 0"}),
-                        html.Div([
-                            dcc.Graph(id="clicked-spider", figure=EMPTY_SPIDER, style={"width": "48%"}, config={"scrollZoom": False}),
-                            dcc.Graph(id="clicked-surface", figure=EMPTY_SURFACE_FIG, style={"width": "48%"}, config={"scrollZoom": False}),
-                        ], style={"display": "flex", "justifyContent": "space-between"}),
-                    ]),
-                    # Distance / match mode controls
+                        html.Label("Distance Mode:", style={"fontWeight": "bold", "marginRight": "8px"}),
+                        dcc.Dropdown(
+                            id="distance-mode",
+                            options=[
+                                {"label": "Euclidean", "value": "euclidean"},
+                                {"label": "X-axis only", "value": "x_only"},
+                                {"label": "Y-axis only", "value": "y_only"},
+                            ],
+                            value="euclidean", clearable=False, style={"width": "160px"},
+                        ),
+                    ], style={"display": "flex", "alignItems": "center"}),
                     html.Div([
-                        html.Div([
-                            html.Label("Distance Mode:", style={"fontWeight": "bold", "marginRight": "8px"}),
-                            dcc.Dropdown(
-                                id="distance-mode",
-                                options=[
-                                    {"label": "Euclidean", "value": "euclidean"},
-                                    {"label": "X-axis only", "value": "x_only"},
-                                    {"label": "Y-axis only", "value": "y_only"},
-                                ],
-                                value="euclidean", clearable=False, style={"width": "160px"},
-                            ),
-                        ], style={"display": "flex", "alignItems": "center"}),
-                        html.Div([
-                            html.Label("Match Mode:", style={"fontWeight": "bold", "marginRight": "8px"}),
-                            dcc.Dropdown(
-                                id="match-mode",
-                                options=[
-                                    {"label": "Cross-Species", "value": "different"},
-                                    {"label": "Same Species", "value": "same"},
-                                ],
-                                value="different", clearable=False, style={"width": "160px"},
-                            ),
-                        ], style={"display": "flex", "alignItems": "center"}),
-                    ], style={
-                        "display": "grid", "grid-template-columns": "1fr 1fr",
-                        "gap": "20px", "padding": "12px 0",
-                    }),
-                    html.Div([
-                        html.H4("Closest Neighbor", style={"margin": "0 0 4px 0"}),
-                        html.Div([
-                            dcc.Graph(id="closest-spider", figure=EMPTY_SPIDER, style={"width": "48%"}, config={"scrollZoom": False}),
-                            dcc.Graph(id="closest-surface", figure=EMPTY_SURFACE_FIG, style={"width": "48%"}, config={"scrollZoom": False}),
-                        ], style={"display": "flex", "justifyContent": "space-between"}),
-                    ]),
-                ], style={"display": "flex", "flexDirection": "column", "gap": "12px"}),
-            ], style={
-                "display": "grid",
-                "gridTemplateColumns": "minmax(700px, 1fr) 850px",
-                "gap": "20px", "width": "100%",
-            }),
-        ]),
-
-        # ========================================================
-        #  SURFACE PLOT MODE
-        # ========================================================
-        html.Div(id="surface-mode-container", style={"display": "none"}, children=[
-            # Controls row
-            html.Div([
-                html.Div([
-                    html.Label("Left Gradient:", style={"fontWeight": "bold", "marginRight": "8px"}),
-                    dcc.Dropdown(
-                        id="surf-left-grad", options=grad_options,
-                        value=default_x, clearable=False, style={"width": "160px"},
-                    ),
-                ], style={"display": "flex", "alignItems": "center"}),
-                html.Div([
-                    html.Label("Right Gradient:", style={"fontWeight": "bold", "marginRight": "8px"}),
-                    dcc.Dropdown(
-                        id="surf-right-grad", options=grad_options,
-                        value=default_y, clearable=False, style={"width": "160px"},
-                    ),
-                ], style={"display": "flex", "alignItems": "center"}),
-                html.Div([
-                    html.Label("Colorscale:", style={"fontWeight": "bold", "marginRight": "8px"}),
-                    dcc.Dropdown(
-                        id="surf-colorscale", options=COLORSCALE_OPTIONS,
-                        value="RdBu_r", clearable=False, style={"width": "200px"},
-                    ),
-                ], style={"display": "flex", "alignItems": "center"}),
-            ], style={
-                "display": "flex", "gap": "24px", "padding": "8px 16px",
-                "flexWrap": "wrap", "alignItems": "center",
-            }),
-
-            # Three-column layout: left surfaces | radial plots | right surfaces
-            html.Div([
-                # Left column -- gradient surfaces
-                html.Div(id="surf-left-container", style={
-                    "flex": "1", "display": "flex", "flexDirection": "column", "gap": "4px",
-                }),
-                # Middle column -- radial plots
-                html.Div([
-                    html.H4("Connectivity Profile", style={
-                        "margin": "0 0 8px 0", "textAlign": "center",
-                    }),
-                    dcc.Graph(id="surf-spider", figure=EMPTY_SPIDER, config={"scrollZoom": False}),
+                        html.Label("Match Mode:", style={"fontWeight": "bold", "marginRight": "8px"}),
+                        dcc.Dropdown(
+                            id="match-mode",
+                            options=[
+                                {"label": "Cross-Species", "value": "different"},
+                                {"label": "Same Species", "value": "same"},
+                            ],
+                            value=default_match, clearable=False, style={"width": "160px"},
+                        ),
+                    ], style={"display": "flex", "alignItems": "center"}),
                 ], style={
-                    "width": "380px", "display": "flex", "flexDirection": "column",
-                    "alignItems": "center", "justifyContent": "center",
-                    "padding": "0 8px",
-                    "borderLeft": "1px solid #eee", "borderRight": "1px solid #eee",
+                    "display": "grid", "grid-template-columns": "1fr 1fr",
+                    "gap": "20px", "padding": "12px 0",
                 }),
-                # Right column -- gradient surfaces
-                html.Div(id="surf-right-container", style={
-                    "flex": "1", "display": "flex", "flexDirection": "column", "gap": "4px",
-                }),
-            ], style={
-                "display": "flex", "gap": "8px", "width": "100%",
-                "minHeight": "500px",
-            }),
-        ]),
+                html.Div([
+                    html.H4("Closest Neighbor", style={"margin": "0 0 4px 0"}),
+                    html.Div([
+                        dcc.Graph(id="closest-spider", figure=EMPTY_SPIDER, style={"width": "48%"}, config={"scrollZoom": False}),
+                        dcc.Graph(id="closest-surface", figure=EMPTY_SURFACE_FIG, style={"width": "48%"}, config={"scrollZoom": False}),
+                    ], style={"display": "flex", "justifyContent": "space-between"}),
+                ]),
+            ], style={"display": "flex", "flexDirection": "column", "gap": "12px"}),
+        ], style={
+            "display": "grid",
+            "gridTemplateColumns": "minmax(700px, 1fr) 850px",
+            "gap": "20px", "width": "100%",
+        }),
+
+        # ---- Gradient surface panel ----
+        html.Div(id="explorer-surface-container", style={
+            "padding": "16px 0", "borderTop": "1px solid #ddd", "marginTop": "16px",
+        }),
     ])
 
 
@@ -1223,28 +1155,15 @@ def update_tab2_surfaces(grad_idx, colorscale):
 #  Callbacks -- Tab 3  (Interactive Explorer)
 # ===================================================================
 
-# --- Toggle scatter / surface visibility ---
-@app.callback(
-    Output("scatter-mode-container", "style"),
-    Output("surface-mode-container", "style"),
-    Input("explorer-display-mode", "value"),
-)
-def toggle_explorer_mode(mode):
-    if mode == "surface":
-        return {"display": "none"}, {"display": "block"}
-    return {"display": "block"}, {"display": "none"}
-
-
-# --- Update gradient dropdowns when data source changes ---
+# --- Update gradient dropdowns + match mode when data source changes ---
 @app.callback(
     Output("explorer-x-grad", "options"),
     Output("explorer-x-grad", "value"),
     Output("explorer-y-grad", "options"),
     Output("explorer-y-grad", "value"),
-    Output("surf-left-grad", "options"),
-    Output("surf-left-grad", "value"),
-    Output("surf-right-grad", "options"),
-    Output("surf-right-grad", "value"),
+    Output("explorer-surface-grad", "options"),
+    Output("explorer-surface-grad", "value"),
+    Output("match-mode", "value"),
     Input("explorer-data-source", "value"),
     prevent_initial_call=True,
 )
@@ -1252,7 +1171,8 @@ def update_explorer_grad_options(data_source):
     opts = _build_grad_options(data_source)
     val_x = opts[0]["value"] if opts else "g1"
     val_y = opts[1]["value"] if len(opts) > 1 else val_x
-    return opts, val_x, opts, val_y, opts, val_x, opts, val_y
+    match_val = "different" if data_source == "cross_species" else "same"
+    return opts, val_x, opts, val_y, opts, val_x, match_val
 
 
 # --- Zoom persistence ---
@@ -1277,7 +1197,7 @@ def save_zoom(relayoutData, old_zoom):
     return new_zoom
 
 
-# --- Scatter mode: main interaction callback ---
+# --- Scatter: main interaction callback ---
 @app.callback(
     Output("selected-idx", "data"),
     Output("clicked-spider", "figure"),
@@ -1293,23 +1213,22 @@ def save_zoom(relayoutData, old_zoom):
     Input("explorer-data-source", "value"),
     State("zoom-state", "data"),
     State("selected-idx", "data"),
-    prevent_initial_call=True,
 )
 def handle_scatter_interactions(
     clickData, distance_mode, match_mode, x_grad, y_grad,
     data_source, zoom_state, current_idx,
 ):
-    """Main callback for the scatter-plot mode."""
+    """Main callback for the scatter-plot explorer."""
     ctx = callback_context
-    triggered_id = ctx.triggered[0]["prop_id"].split(".")[0]
+    triggered_id = ctx.triggered[0]["prop_id"].split(".")[0] if ctx.triggered else ""
 
     df = df_by_source.get(data_source, df_global)
     if df.empty:
         empty_scatter = _empty_fig("No data for this source.", 950)
         return None, EMPTY_SPIDER, EMPTY_SPIDER, EMPTY_SURFACE_FIG, EMPTY_SURFACE_FIG, empty_scatter
 
-    # Reset selection when axes or data source change
-    if triggered_id in ("explorer-x-grad", "explorer-y-grad", "explorer-data-source"):
+    # On initial load or when axes / data source change, just render the scatter
+    if not triggered_id or triggered_id in ("explorer-x-grad", "explorer-y-grad", "explorer-data-source"):
         scatter = make_scatter(x_grad, y_grad, df_source=df)
         return None, EMPTY_SPIDER, EMPTY_SPIDER, EMPTY_SURFACE_FIG, EMPTY_SURFACE_FIG, scatter
 
@@ -1381,25 +1300,15 @@ def handle_scatter_interactions(
     return selected_idx, clicked_spider, closest_spider, clicked_surface, closest_surface, scatter
 
 
-# --- Surface mode: render surfaces ---
+# --- Gradient surface panel ---
 @app.callback(
-    Output("surf-left-container", "children"),
-    Output("surf-right-container", "children"),
-    Input("surf-left-grad", "value"),
-    Input("surf-right-grad", "value"),
-    Input("surf-colorscale", "value"),
+    Output("explorer-surface-container", "children"),
+    Input("explorer-surface-grad", "value"),
+    Input("explorer-colorscale", "value"),
     Input("explorer-data-source", "value"),
-    Input("surf-selected-info", "data"),
-    prevent_initial_call=True,
 )
-def update_surface_mode_panels(
-    left_grad_str, right_grad_str, colorscale, data_source, sel_info,
-):
-    """Render the left and right surface panels for Surface Plot mode."""
-    highlight_species = sel_info.get("species") if sel_info else None
-    highlight_hem = sel_info.get("hem") if sel_info else None
-    highlight_vtx = sel_info.get("vtx") if sel_info else None
-
+def update_explorer_surfaces(surface_grad, colorscale, data_source):
+    """Render brain surfaces showing the selected gradient."""
     def _grad_idx(grad_str):
         if grad_str and grad_str.startswith("g"):
             try:
@@ -1408,101 +1317,46 @@ def update_surface_mode_panels(
                 pass
         return 0
 
-    left_idx = _grad_idx(left_grad_str)
-    right_idx = _grad_idx(right_grad_str)
+    idx = _grad_idx(surface_grad)
+    surface_data = _get_explorer_surface_data(data_source, idx, colorscale)
 
-    left_data = _get_explorer_surface_data(data_source, left_idx, colorscale)
-    right_data = _get_explorer_surface_data(data_source, right_idx, colorscale)
+    if not surface_data:
+        return html.P("No surface data available for this source.",
+                       style={"color": "grey", "padding": "20px"})
 
-    def _render_panel(surface_data, grad_str, side_id):
-        if not surface_data:
-            return [html.P("No data available.", style={"color": "grey", "padding": "20px"})]
+    grad_label = (f"Gradient {surface_grad[1:]}"
+                  if surface_grad and surface_grad.startswith("g")
+                  else str(surface_grad))
 
-        grad_label = f"Gradient {grad_str[1:]}" if grad_str and grad_str.startswith("g") else grad_str
-        children = [
-            html.H4(grad_label, style={"margin": "4px 0 2px 8px", "textAlign": "center"}),
-        ]
+    children = [
+        html.H4(f"Surface: {grad_label}",
+                 style={"margin": "0 0 8px 0", "textAlign": "center"}),
+    ]
 
-        for i, (species, hem, values, title, cmin, cmax) in enumerate(surface_data):
-            vtx_highlight = None
-            if (highlight_species == species and highlight_hem == hem
-                    and highlight_vtx is not None):
-                vtx_highlight = highlight_vtx
+    graphs = []
+    for i, (species, hem, values, title, cmin, cmax) in enumerate(surface_data):
+        fig = make_surface_with_gradient(
+            species, hem, values, title,
+            colorscale=colorscale, cmin=cmin, cmax=cmax,
+            show_colorbar=(i == len(surface_data) - 1),
+            height=350,
+        )
+        graphs.append(
+            dcc.Graph(figure=fig, config={"scrollZoom": False}, style={"flex": "1"})
+        )
 
-            fig = make_surface_with_gradient_and_highlight(
-                species, hem, values, title,
-                colorscale=colorscale, cmin=cmin, cmax=cmax,
-                show_colorbar=(i == len(surface_data) - 1),
-                height=300 if len(surface_data) > 2 else 380,
-                highlight_vtx_id=vtx_highlight,
-            )
-            graph_id = f"{side_id}-surf-{species}-{hem}"
-            children.append(
-                dcc.Graph(id={"type": f"{side_id}-surface-graph", "index": f"{species}_{hem}"},
-                          figure=fig, config={"scrollZoom": False},
-                          style={"width": "100%"})
-            )
+    if len(graphs) <= 2:
+        children.append(
+            html.Div(graphs, style={"display": "flex", "gap": "10px"})
+        )
+    else:
+        # Cross-species: chimpanzee on top, human on bottom
+        children.append(html.Div([
+            html.Div(graphs[:2], style={"display": "flex", "gap": "10px"}),
+            html.Div(graphs[2:], style={"display": "flex", "gap": "10px"}),
+        ], style={"display": "flex", "flexDirection": "column", "gap": "4px"}))
 
-        return children
-
-    left_children = _render_panel(left_data, left_grad_str, "left")
-    right_children = _render_panel(right_data, right_grad_str, "right")
-
-    return left_children, right_children
-
-
-# --- Surface mode: click on a surface to select a vertex ---
-@app.callback(
-    Output("surf-selected-info", "data"),
-    Output("surf-spider", "figure"),
-    Input({"type": "left-surface-graph", "index": dash.ALL}, "clickData"),
-    Input({"type": "right-surface-graph", "index": dash.ALL}, "clickData"),
-    State("surf-selected-info", "data"),
-    prevent_initial_call=True,
-)
-def handle_surface_click(left_clicks, right_clicks, current_sel):
-    """Handle click events on surface graphs in Surface Plot mode."""
-    ctx = callback_context
-    if not ctx.triggered:
-        return dash.no_update, dash.no_update
-
-    # Find which surface was clicked
-    for trig in ctx.triggered:
-        prop_id = trig["prop_id"]
-        click_data = trig["value"]
-        if click_data is None:
-            continue
-
-        # Parse the pattern-matching ID
-        # prop_id looks like: '{"index":"species_hem","type":"left-surface-graph"}.clickData'
-        import json
-        try:
-            id_str = prop_id.split(".")[0]
-            id_dict = json.loads(id_str)
-            index_str = id_dict.get("index", "")
-        except (json.JSONDecodeError, AttributeError):
-            continue
-
-        parts = index_str.split("_", 1)
-        if len(parts) != 2:
-            continue
-        species, hem = parts
-
-        # Extract vertex from click data -- Mesh3d clicks give pointNumber
-        point = click_data["points"][0]
-        vtx_id = point.get("pointNumber")
-        if vtx_id is None:
-            continue
-
-        # Build spider plot
-        label = f"{species.capitalize()} {hem} (vtx {vtx_id})"
-        color = PLOT_CONFIGS_SCATTER_GLOBAL.get(f"{species}_{hem}", {}).get("color", "grey")
-        spider = make_spider(get_vertex_profile(species, hem, vtx_id), label, color)
-
-        sel_data = {"species": species, "hem": hem, "vtx": int(vtx_id)}
-        return sel_data, spider
-
-    return dash.no_update, dash.no_update
+    return html.Div(children)
 
 
 # ===================================================================
