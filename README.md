@@ -245,9 +245,9 @@ This pipeline processes connectivity blueprints through several stages:
 * **Name**: `7_interactive_plot_cross_species.py`
 * **Function**: Launches a tabbed interactive Dash web application for visualizing brain connectivity gradients across species. The app combines 3D brain-surface rendering with scatter-plot exploration in three tabs:
 
-    1.  **Individual Gradients (Tab 1)**: View per-species gradients painted on 3D brain surfaces (left and right hemispheres side-by-side). Select species, analysis type (separate/combined), gradient number, and colorscale. Uses output from **Script 3**.
+    1.  **Individual Gradients (Tab 1)**: View per-species combined-hemisphere gradients painted on 3D brain surfaces (left and right hemispheres side-by-side). Select species, gradient number, and colorscale. Uses output from **Script 3**.
     2.  **Cross-Species Gradients (Tab 2)**: View joint cross-species gradients rendered simultaneously on every species/hemisphere surface. A shared color range is applied across all surfaces for direct comparison. Select gradient number and colorscale. Uses output from **Script 6**.
-    3.  **Interactive Explorer (Tab 3)**: Scatter-plot exploration of the cross-species gradient space with marginal histograms. Select which gradients map to the X and Y axes. Click on any data point (vertex) to instantly visualize its detailed connectivity profile on a spider plot, its anatomical location on a 3D brain surface, and the closest neighbour in another species (or the same species). Supports Euclidean, X-axis only, and Y-axis only distance modes. Uses output from **Scripts 2 & 6**.
+    3.  **Interactive Explorer (Tab 3)**: Scatter-plot exploration of gradient space with marginal histograms. A data-source selector switches between chimpanzee-only, human-only, and cross-species data. Select which gradients map to the X and Y axes. Click on any data point (vertex) to see its connectivity profile on a spider plot, the selected gradient rendered on its brain surface with the vertex highlighted, and the closest neighbour in another species (or same species). Choose which gradient to display on the surfaces and the colorscale. Supports Euclidean, X-axis only, and Y-axis only distance modes. Uses output from **Scripts 2, 3 & 6**.
 
     Surface rendering in Tabs 1 and 2 paints gradient values only on temporal-lobe (TL) vertices; the rest of the brain is shown in grey. The TL and non-TL regions are rendered as independent meshes with GPU-accelerated colorscale interpolation.
 
@@ -334,7 +334,7 @@ The interactive Dash application (Script 7) is also available as a hosted web ap
 
 > **https://gfreches.pythonanywhere.com/**
 
-The deployment uses `code/pythonanywhere_app.py`, a self-contained adaptation of Script 7 designed for WSGI hosting. It supports the same three tabs (Individual Gradients, Cross-Species Gradients, and Interactive Explorer) but is configured for PythonAnywhere's directory layout.
+The deployment uses `code/pythonanywhere_app.py`, a self-contained adaptation of Script 7 designed for WSGI hosting. It supports the same three tabs (Individual Gradients, Cross-Species Gradients, and Interactive Explorer) with identical functionality but is configured for PythonAnywhere's directory layout and supports both flat and nested file structures.
 
 ### PythonAnywhere directory structure
 

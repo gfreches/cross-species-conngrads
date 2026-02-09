@@ -646,40 +646,6 @@ def make_surface_with_gradient_and_highlight(
     return fig
 
 
-def make_surface_plot_highlight(species, hemisphere, highlight_vtx_id=None, title="Surface"):
-    """Grey brain surface with an optional highlighted vertex marker."""
-    vertices, faces = load_surface(species, hemisphere)
-    if vertices is None:
-        return _empty_fig(f"Surface not found: {species} {hemisphere}", 350)
-
-    fig = go.Figure()
-    fig.add_trace(go.Mesh3d(
-        x=vertices[:, 0], y=vertices[:, 1], z=vertices[:, 2],
-        i=faces[:, 0], j=faces[:, 1], k=faces[:, 2],
-        color="lightgrey", opacity=1.0, hoverinfo="none",
-    ))
-
-    if highlight_vtx_id is not None and 0 <= int(highlight_vtx_id) < len(vertices):
-        vtx = vertices[int(highlight_vtx_id)]
-        fig.add_trace(go.Scatter3d(
-            x=[vtx[0]], y=[vtx[1]], z=[vtx[2]], mode="markers",
-            marker=dict(size=8, color="yellow", line=dict(width=2, color="black")),
-            hoverinfo="skip",
-        ))
-
-    eye = dict(x=-1.7, y=0, z=0) if hemisphere.upper() == "L" else dict(x=1.7, y=0, z=0)
-    fig.update_layout(
-        title_text=title, title_font_size=12, height=350,
-        margin=dict(l=10, r=10, t=40, b=10),
-        scene=dict(
-            xaxis=dict(visible=False), yaxis=dict(visible=False), zaxis=dict(visible=False),
-            aspectratio=dict(x=1, y=1, z=1), aspectmode="data",
-            camera=dict(eye=eye),
-        ),
-    )
-    return fig
-
-
 def _load_blueprint(species, hemisphere):
     """Load and cache the masked-average blueprint for a species/hemisphere.
 
@@ -860,50 +826,6 @@ def make_scatter(
 # ===================================================================
 #  Helper: resolve the right gradient maps for explorer surface mode
 # ===================================================================
-
-def _get_explorer_surface_data(data_source, grad_idx, colorscale):
-    """Return a list of (species, hem, values, title, cmin, cmax) tuples."""
-    results = []
-
-    if data_source == "cross_species":
-        species_order = ["chimpanzee", "human"]
-        maps = CROSS_SPECIES_GRADIENT_MAPS
-        n_grads = N_CROSS_SPECIES_GRADIENTS
-    else:
-        species_order = [data_source]
-        maps = {(s, h): v for (s, h), v in INDIVIDUAL_GRADIENT_MAPS.items()
-                if s == data_source}
-        n_grads = N_INDIVIDUAL_GRADS_BY_SPECIES.get(data_source, 0)
-
-    if grad_idx is None or grad_idx >= n_grads:
-        return results
-
-    extremes = []
-    for (s, h), gmap in maps.items():
-        if s not in species_order:
-            continue
-        if grad_idx < gmap.shape[1]:
-            col = gmap[:, grad_idx]
-            m = load_mask(s, h)
-            if m is None:
-                m = (col != 0.0) & np.isfinite(col)
-            roi = col[m & np.isfinite(col)]
-            if roi.size > 0:
-                extremes.extend([float(roi.min()), float(roi.max())])
-
-    shared_min = min(extremes) if extremes else -1.0
-    shared_max = max(extremes) if extremes else 1.0
-
-    for species in species_order:
-        for hem in ("L", "R"):
-            gmap = maps.get((species, hem))
-            if gmap is not None and grad_idx < gmap.shape[1]:
-                values = gmap[:, grad_idx]
-                title = f"{species.capitalize()} {hem}"
-                results.append((species, hem, values, title, shared_min, shared_max))
-
-    return results
-
 
 # ===================================================================
 #  Tab layouts
@@ -1154,10 +1076,6 @@ def create_tab3_layout():
             "gap": "20px", "width": "100%",
         }),
 
-        # ---- Gradient surface panel ----
-        html.Div(id="explorer-surface-container", style={
-            "padding": "16px 0", "borderTop": "1px solid #ddd", "marginTop": "16px",
-        }),
     ])
 
 
@@ -1395,12 +1313,14 @@ def save_zoom(relayoutData, old_zoom):
     Input("explorer-x-grad", "value"),
     Input("explorer-y-grad", "value"),
     Input("explorer-data-source", "value"),
+    Input("explorer-surface-grad", "value"),
+    Input("explorer-colorscale", "value"),
     State("zoom-state", "data"),
     State("selected-idx", "data"),
 )
 def handle_scatter_interactions(
     clickData, distance_mode, match_mode, x_grad, y_grad,
-    data_source, zoom_state, current_idx,
+    data_source, surface_grad, colorscale, zoom_state, current_idx,
 ):
     """Main callback for the scatter-plot explorer."""
     ctx = callback_context
@@ -1445,7 +1365,18 @@ def handle_scatter_interactions(
     s_label = f"{s_sp.capitalize()} {s_hem} (vtx {s_vtx})"
     s_color = PLOT_CONFIGS_SCATTER_GLOBAL.get(f"{s_sp}_{s_hem}", {}).get("color")
     clicked_spider  = make_spider(get_vertex_profile(s_sp, s_hem, s_vtx), s_label, s_color)
-    clicked_surface = make_surface_plot_highlight(s_sp, s_hem, s_vtx, s_label)
+
+    # Gradient surface for clicked vertex
+    g_idx = int(surface_grad[1:]) - 1 if surface_grad and surface_grad.startswith("g") else 0
+    gmap = (CROSS_SPECIES_GRADIENT_MAPS if data_source == "cross_species"
+            else INDIVIDUAL_GRADIENT_MAPS).get((s_sp, s_hem))
+    if gmap is not None and g_idx < gmap.shape[1]:
+        clicked_surface = make_surface_with_gradient_and_highlight(
+            s_sp, s_hem, gmap[:, g_idx], s_label,
+            colorscale=colorscale, highlight_vtx_id=s_vtx, height=350,
+        )
+    else:
+        clicked_surface = EMPTY_SURFACE_FIG
 
     # ------ Closest neighbour ------
     if match_mode == "different":
@@ -1474,7 +1405,15 @@ def handle_scatter_interactions(
         c_label = f"Closest: {c_sp.capitalize()} {c_hem} (vtx {c_vtx})"
         c_color = PLOT_CONFIGS_SCATTER_GLOBAL.get(f"{c_sp}_{c_hem}", {}).get("color")
         closest_spider  = make_spider(get_vertex_profile(c_sp, c_hem, c_vtx), c_label, c_color)
-        closest_surface = make_surface_plot_highlight(c_sp, c_hem, c_vtx, c_label)
+        c_gmap = (CROSS_SPECIES_GRADIENT_MAPS if data_source == "cross_species"
+                  else INDIVIDUAL_GRADIENT_MAPS).get((c_sp, c_hem))
+        if c_gmap is not None and g_idx < c_gmap.shape[1]:
+            closest_surface = make_surface_with_gradient_and_highlight(
+                c_sp, c_hem, c_gmap[:, g_idx], c_label,
+                colorscale=colorscale, highlight_vtx_id=c_vtx, height=350,
+            )
+        else:
+            closest_surface = EMPTY_SURFACE_FIG
 
     scatter = make_scatter(
         x_grad, y_grad, selected_idx, closest_idx,
@@ -1483,64 +1422,6 @@ def handle_scatter_interactions(
     )
     return selected_idx, clicked_spider, closest_spider, clicked_surface, closest_surface, scatter
 
-
-# --- Gradient surface panel ---
-@app.callback(
-    Output("explorer-surface-container", "children"),
-    Input("explorer-surface-grad", "value"),
-    Input("explorer-colorscale", "value"),
-    Input("explorer-data-source", "value"),
-)
-def update_explorer_surfaces(surface_grad, colorscale, data_source):
-    """Render brain surfaces showing the selected gradient."""
-    def _grad_idx(grad_str):
-        if grad_str and grad_str.startswith("g"):
-            try:
-                return int(grad_str[1:]) - 1
-            except ValueError:
-                pass
-        return 0
-
-    idx = _grad_idx(surface_grad)
-    surface_data = _get_explorer_surface_data(data_source, idx, colorscale)
-
-    if not surface_data:
-        return html.P("No surface data available for this source.",
-                       style={"color": "grey", "padding": "20px"})
-
-    grad_label = (f"Gradient {surface_grad[1:]}"
-                  if surface_grad and surface_grad.startswith("g")
-                  else str(surface_grad))
-
-    children = [
-        html.H4(f"Surface: {grad_label}",
-                 style={"margin": "0 0 8px 0", "textAlign": "center"}),
-    ]
-
-    graphs = []
-    for i, (species, hem, values, title, cmin, cmax) in enumerate(surface_data):
-        fig = make_surface_with_gradient(
-            species, hem, values, title,
-            colorscale=colorscale, cmin=cmin, cmax=cmax,
-            show_colorbar=(i == len(surface_data) - 1),
-            height=350,
-        )
-        graphs.append(
-            dcc.Graph(figure=fig, config={"scrollZoom": False}, style={"flex": "1"})
-        )
-
-    if len(graphs) <= 2:
-        children.append(
-            html.Div(graphs, style={"display": "flex", "gap": "10px"})
-        )
-    else:
-        # Cross-species: chimpanzee on top, human on bottom
-        children.append(html.Div([
-            html.Div(graphs[:2], style={"display": "flex", "gap": "10px"}),
-            html.Div(graphs[2:], style={"display": "flex", "gap": "10px"}),
-        ], style={"display": "flex", "flexDirection": "column", "gap": "4px"}))
-
-    return html.Div(children)
 
 
 # ===================================================================
