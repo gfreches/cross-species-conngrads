@@ -1368,12 +1368,33 @@ def handle_scatter_interactions(
 
     # Gradient surface for clicked vertex
     g_idx = int(surface_grad[1:]) - 1 if surface_grad and surface_grad.startswith("g") else 0
-    gmap = (CROSS_SPECIES_GRADIENT_MAPS if data_source == "cross_species"
-            else INDIVIDUAL_GRADIENT_MAPS).get((s_sp, s_hem))
+    grad_maps = (CROSS_SPECIES_GRADIENT_MAPS if data_source == "cross_species"
+                 else INDIVIDUAL_GRADIENT_MAPS)
+    gmap = grad_maps.get((s_sp, s_hem))
+
+    # Shared colour range across species (same logic as Tab 2) so both
+    # the clicked and closest-neighbour surfaces are directly comparable.
+    shared_cmin, shared_cmax = None, None
+    if data_source == "cross_species":
+        extremes = []
+        for (_s, _h), maps in CROSS_SPECIES_GRADIENT_MAPS.items():
+            if g_idx < maps.shape[1]:
+                col = maps[:, g_idx]
+                m = load_mask(_s, _h)
+                if m is None:
+                    m = (col != 0.0) & np.isfinite(col)
+                roi = col[m & np.isfinite(col)]
+                if roi.size > 0:
+                    extremes.extend([float(roi.min()), float(roi.max())])
+        if extremes:
+            shared_cmin = min(extremes)
+            shared_cmax = max(extremes)
+
     if gmap is not None and g_idx < gmap.shape[1]:
         clicked_surface = make_surface_with_gradient_and_highlight(
             s_sp, s_hem, gmap[:, g_idx], s_label,
-            colorscale=colorscale, highlight_vtx_id=s_vtx, height=350,
+            colorscale=colorscale, cmin=shared_cmin, cmax=shared_cmax,
+            highlight_vtx_id=s_vtx, height=350,
         )
     else:
         clicked_surface = EMPTY_SURFACE_FIG
@@ -1405,12 +1426,12 @@ def handle_scatter_interactions(
         c_label = f"Closest: {c_sp.capitalize()} {c_hem} (vtx {c_vtx})"
         c_color = PLOT_CONFIGS_SCATTER_GLOBAL.get(f"{c_sp}_{c_hem}", {}).get("color")
         closest_spider  = make_spider(get_vertex_profile(c_sp, c_hem, c_vtx), c_label, c_color)
-        c_gmap = (CROSS_SPECIES_GRADIENT_MAPS if data_source == "cross_species"
-                  else INDIVIDUAL_GRADIENT_MAPS).get((c_sp, c_hem))
+        c_gmap = grad_maps.get((c_sp, c_hem))
         if c_gmap is not None and g_idx < c_gmap.shape[1]:
             closest_surface = make_surface_with_gradient_and_highlight(
                 c_sp, c_hem, c_gmap[:, g_idx], c_label,
-                colorscale=colorscale, highlight_vtx_id=c_vtx, height=350,
+                colorscale=colorscale, cmin=shared_cmin, cmax=shared_cmax,
+                highlight_vtx_id=c_vtx, height=350,
             )
         else:
             closest_surface = EMPTY_SURFACE_FIG
