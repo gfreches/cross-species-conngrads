@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
 """
-PythonAnywhere-deployable Dash application for cross-species connectivity
-gradient visualization.
+Self-hosted Dash application for cross-species connectivity gradient
+visualization.
 
-Adapted from script 7 (7_interactive_plot_cross_species.py) for hosting
-on PythonAnywhere.  Provides three interactive tabs:
+Adapted from script 7 (7_interactive_plot_cross_species.py) for self-hosted
+WSGI deployment (e.g. Gunicorn + Nginx).  Provides three interactive tabs:
 
   Tab 1 - Individual Gradients:
       View per-species combined-hemisphere gradients painted on brain surfaces
@@ -22,16 +22,17 @@ on PythonAnywhere.  Provides three interactive tabs:
       A data-source selector switches between chimpanzee-only, human-only, and
       cross-species gradient data.
 
-PythonAnywhere setup:
-  1. Edit the CONFIGURATION section below to match your PA paths.
-  2. In your WSGI config file, add:
+Self-hosted WSGI setup (e.g. with Gunicorn + Nginx):
+  1. Edit the CONFIGURATION section below to match your server paths.
+  2. Run with Gunicorn:
+       gunicorn --workers 4 self_hosted_app:server
+  3. Or in your WSGI config file:
        import sys
-       sys.path.insert(0, '/home/<username>/<project>/code')
-       from pythonanywhere_app import server as application
-  3. Reload your web app.
+       sys.path.insert(0, '/path/to/project/code')
+       from self_hosted_app import server as application
 
 Local development:
-  python pythonanywhere_app.py \\
+  python self_hosted_app.py \\
       --species_list_for_run "human,chimpanzee" \\
       --target_k_species_for_run "chimpanzee"
 """
@@ -63,32 +64,32 @@ from sklearn.metrics.pairwise import euclidean_distances
 
 
 # ===================================================================
-#  PYTHONANYWHERE CONFIGURATION
-#  Edit these when deploying to PythonAnywhere.  When running locally
-#  with argparse (python pythonanywhere_app.py --species_list_for_run ...)
+#  SELF-HOSTED CONFIGURATION
+#  Edit these when deploying to your server.  When running locally
+#  with argparse (python self_hosted_app.py --species_list_for_run ...)
 #  these are overridden by command-line arguments.
 # ===================================================================
-PA_PROJECT_ROOT = "/home/gfreches/cross_species_conn_grads"
-PA_SPECIES_LIST = ["human", "chimpanzee"]
-PA_TARGET_K_SPECIES = "chimpanzee"
+DEPLOY_PROJECT_ROOT = "/path/to/cross_species_conn_grads"
+DEPLOY_SPECIES_LIST = ["human", "chimpanzee"]
+DEPLOY_TARGET_K_SPECIES = "chimpanzee"
 
-# Path overrides for PythonAnywhere deployment.
-# On PA, all gradient outputs (individual, cross-species, NPZ) live in a
+# Path overrides for self-hosted deployment.
+# All gradient outputs (individual, cross-species, NPZ) live in a
 # single flat directory: data/gradient_outputs/
-PA_NPZ_PATH_OVERRIDE = os.path.join(
-    PA_PROJECT_ROOT, "data", "gradient_outputs",
+DEPLOY_NPZ_PATH_OVERRIDE = os.path.join(
+    DEPLOY_PROJECT_ROOT, "data", "gradient_outputs",
     "cross_species_embedding_data_2Species_LR_Combined.npz",
 )
-PA_SURFACE_DIR_OVERRIDE = None  # data/surfaces is correct by default
-PA_MASK_DIR_OVERRIDE = None     # no masks dir on PA; fallback handles it
-PA_INDIVIDUAL_GRAD_DIR_OVERRIDE = os.path.join(
-    PA_PROJECT_ROOT, "data", "gradient_outputs",
+DEPLOY_SURFACE_DIR_OVERRIDE = None  # data/surfaces is correct by default
+DEPLOY_MASK_DIR_OVERRIDE = None     # no masks dir; fallback handles it
+DEPLOY_INDIVIDUAL_GRAD_DIR_OVERRIDE = os.path.join(
+    DEPLOY_PROJECT_ROOT, "data", "gradient_outputs",
 )
-PA_AVERAGE_BP_DIR_OVERRIDE = os.path.join(
-    PA_PROJECT_ROOT, "data", "temporal_lobe_average_blueprints",
+DEPLOY_AVERAGE_BP_DIR_OVERRIDE = os.path.join(
+    DEPLOY_PROJECT_ROOT, "data", "temporal_lobe_average_blueprints",
 )
-PA_CROSS_SPECIES_GRAD_DIR_OVERRIDE = os.path.join(
-    PA_PROJECT_ROOT, "data", "gradient_outputs",
+DEPLOY_CROSS_SPECIES_GRAD_DIR_OVERRIDE = os.path.join(
+    DEPLOY_PROJECT_ROOT, "data", "gradient_outputs",
 )
 
 
@@ -1532,33 +1533,33 @@ def configure_and_load(
 
 
 # ===================================================================
-#  PythonAnywhere auto-initialization
+#  Auto-initialization for WSGI deployment
 # ===================================================================
 _INITIALIZED = False
 
 
-def _pa_init():
+def _init_app():
     global _INITIALIZED
     if _INITIALIZED:
         return
     _INITIALIZED = True
 
     configure_and_load(
-        project_root=PA_PROJECT_ROOT,
-        species_list=PA_SPECIES_LIST,
-        target_k_species=PA_TARGET_K_SPECIES,
-        npz_path_override=PA_NPZ_PATH_OVERRIDE,
-        surface_dir_override=PA_SURFACE_DIR_OVERRIDE,
-        mask_dir_override=PA_MASK_DIR_OVERRIDE,
-        individual_grad_dir_override=PA_INDIVIDUAL_GRAD_DIR_OVERRIDE,
-        average_bp_dir_override=PA_AVERAGE_BP_DIR_OVERRIDE,
-        cross_species_grad_dir_override=PA_CROSS_SPECIES_GRAD_DIR_OVERRIDE,
+        project_root=DEPLOY_PROJECT_ROOT,
+        species_list=DEPLOY_SPECIES_LIST,
+        target_k_species=DEPLOY_TARGET_K_SPECIES,
+        npz_path_override=DEPLOY_NPZ_PATH_OVERRIDE,
+        surface_dir_override=DEPLOY_SURFACE_DIR_OVERRIDE,
+        mask_dir_override=DEPLOY_MASK_DIR_OVERRIDE,
+        individual_grad_dir_override=DEPLOY_INDIVIDUAL_GRAD_DIR_OVERRIDE,
+        average_bp_dir_override=DEPLOY_AVERAGE_BP_DIR_OVERRIDE,
+        cross_species_grad_dir_override=DEPLOY_CROSS_SPECIES_GRAD_DIR_OVERRIDE,
     )
 
 
-# Run PA initialization at import time (for WSGI)
+# Run initialization at import time (for WSGI)
 if __name__ != "__main__":
-    _pa_init()
+    _init_app()
 
 
 # ===================================================================
