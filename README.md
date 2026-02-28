@@ -1,7 +1,7 @@
 # Cross-Species Connectivity Gradient Analysis Pipeline
 
 This repository contains a suite of Python scripts designed to process, analyze, and visualize brain connectivity blueprints, with a focus on computing and comparing connectivity gradients across different primate species (e.g., humans and chimpanzees). The pipeline includes steps for averaging blueprints, masking, individual species gradient computation, data downsampling via k-means, cross-species gradient computation, and interactive visualization of the results.
-You can also find an online version of the 2-D interactive plot of this work in https://gfreches.pythonanywhere.com/
+You can also find an online version of the 2-D interactive plot of this work in https://cross-species-gradients.duckdns.org/
 
 ## Table of Contents
 1.  [Prerequisites](#prerequisites)
@@ -18,7 +18,7 @@ You can also find an online version of the 2-D interactive plot of this work in 
     * [Script 8: Plot Cross-Species Gradients (Static Scatter Plots)](#script-8-plot-cross-species-gradients-static-scatter-plots)
     * [Script 9: Run Permutation Analysis](#script-9-run-permutation-analysis)
 
-5.  [PythonAnywhere Deployment](#pythonanywhere-deployment)
+5.  [Self-Hosted Deployment](#self-hosted-deployment)
 6.  [Outputs](#outputs)
 
 ## Prerequisites
@@ -328,17 +328,17 @@ This pipeline processes connectivity blueprints through several stages:
     * `--alpha`: **(Optional)** The significance level for the test. (Default: 0.01)
     * `--no_histograms`: **(Optional)** A flag to disable saving histogram plots of the null distributions. (Default: False, meaning histograms are generated)
 
-## PythonAnywhere Deployment
+## Self-Hosted Deployment
 
-The interactive Dash application (Script 7) is also available as a hosted web app via **PythonAnywhere** at:
+The interactive Dash application (Script 7) is also available as a hosted web app at:
 
-> **https://gfreches.pythonanywhere.com/**
+> **https://cross-species-gradients.duckdns.org/**
 
-The deployment uses `code/pythonanywhere_app.py`, a self-contained adaptation of Script 7 designed for WSGI hosting. It supports the same three tabs (Individual Gradients, Cross-Species Gradients, and Interactive Explorer) with identical functionality but is configured for PythonAnywhere's directory layout and supports both flat and nested file structures.
+The deployment uses `code/self_hosted_app.py`, a self-contained adaptation of Script 7 designed for WSGI hosting (e.g. Gunicorn + Nginx). It supports the same three tabs (Individual Gradients, Cross-Species Gradients, and Interactive Explorer) with identical functionality but is configured for a flat server directory layout.
 
-### PythonAnywhere directory structure
+### Self-hosted directory structure
 
-On PythonAnywhere, data files are organized under `/home/gfreches/cross_species_conn_grads/data/` in a flatter layout than the local `results/`-based structure:
+On the server, data files are organized under the configured `DEPLOY_PROJECT_ROOT/data/` in a flatter layout than the local `results/`-based structure:
 
 ```
 data/
