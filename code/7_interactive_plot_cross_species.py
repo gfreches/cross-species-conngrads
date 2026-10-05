@@ -42,7 +42,7 @@ from sklearn.metrics.pairwise import euclidean_distances
 DEFAULT_N_TRACTS_EXPECTED = 20
 DEFAULT_TRACT_NAMES = [
     "AC", "AF", "AR", "CBD", "CBP", "CBT", "CST", "FA",
-    "FMI", "FMA", "FX", "IFOF", "ILF", "MDLF",
+    "FMA", "FMI", "FX", "IFOF", "ILF", "MDLF",
     "OR", "SLF I", "SLF II", "SLF III", "UF", "VOF",
 ]
 DEFAULT_PLOT_CONFIGS_SCATTER = {

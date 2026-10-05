@@ -1,0 +1,264 @@
+"""Figures for the thesis chapter on human-chimpanzee temporal lobe gradients.
+
+Reads the outputs of scripts 2, 3, 6 and 10 and writes PNG (300 dpi) and PDF files to
+results/11_thesis_figures/main and results/11_thesis_figures/supplementary:
+
+  main/Figure01_dimensionality          reconstruction score vs number of gradients (chimpanzee, human, cross-species)
+  main/Figure03_chimpanzee_profiles     connectivity profiles at the chimpanzee locations A-D (left and right vertex)
+  main/Figure06_human_profiles          connectivity profiles at the human locations A-E
+  main/Figure09_cross_species           cross-species G1 and G2 on the surfaces, and all profiles in G1-G2 space
+  main/Figure10_cross_species_profiles  profiles at the ends of cross-species G2 (A-C, chosen by rule, see below)
+  supplementary/FigureS1-S3             single-species (human, chimpanzee) and cross-species gradients G1-G10
+  supplementary/FigureS4                cross-species G1 against G2-G10
+  supplementary/FigureS5                spread of the human and chimpanzee values along cross-species G1
+
+Usage (from the project root, after script 10):
+    python code/11_thesis_figures.py
+"""
+import argparse
+import os
+
+import matplotlib
+matplotlib.use('Agg')
+import matplotlib.pyplot as plt
+import numpy as np
+import pandas as pd
+from nilearn import plotting
+
+import common as c
+
+# Species/hemisphere colours (checked for colour-blind separation) and the gradient colour map.
+COLOR = {('human', 'L'): '#1f4e9c', ('human', 'R'): '#4f8fe6', ('chimpanzee', 'L'): '#b2182b', ('chimpanzee', 'R'): '#e8604f'}
+NAME = {'human': 'Human', 'chimpanzee': 'Chimpanzee'}
+CMAP = 'Spectral_r'
+INK, GRID = '#1a1a1a', '#e3e3e3'
+KEYS = [('human', 'L'), ('human', 'R'), ('chimpanzee', 'L'), ('chimpanzee', 'R')]
+
+# Locations shown in the profile figures (surface vertex indices, from the original Figures 3 and 6).
+FIG3 = {'A': [('L', 13952), ('R', 13981)], 'B': [('L', 14924), ('R', 15182)],
+        'C': [('R', 16699), ('L', 16702)], 'D': [('L', 6266), ('R', 5350)]}
+FIG6 = {'A': [('R', 22600)], 'B': [('R', 31449)], 'C': [('L', 21558)], 'D': [('L', 9024)], 'E': [('R', 15595)]}
+
+plt.rcParams.update({'font.family': 'DejaVu Sans', 'font.size': 8, 'axes.spines.top': False,
+                     'axes.spines.right': False, 'axes.edgecolor': '#5f6368', 'xtick.color': '#5f6368',
+                     'ytick.color': '#5f6368', 'savefig.dpi': 300, 'savefig.bbox': 'tight'})
+
+
+def save(fig, path):
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    for ext in ('png', 'pdf'):
+        fig.savefig(f'{path}.{ext}')
+    plt.close(fig)
+    print('saved', path, flush=True)
+
+
+def letter(ax, s, x=-0.12, y=1.04):
+    ax.text(x, y, s, transform=ax.transAxes, fontsize=13, fontweight='bold', color=INK)
+
+
+def brain(ax, root, sp, h, values=None, vmin=None, vmax=None, marker=None):
+    """Lateral view of the inflated surface; temporal lobe coloured by `values` (or a flat tint), optional marker."""
+    xyz, faces = c.surface(root, sp, h)
+    data = np.full(len(xyz), np.nan)
+    data[c.mask_indices(root, sp, h)] = 0.5 if values is None else values
+    plotting.plot_surf((xyz, faces), data, hemi='left' if h == 'L' else 'right', view='lateral', axes=ax,
+                       cmap='Greys' if values is None else CMAP, vmin=0 if values is None else vmin,
+                       vmax=2.5 if values is None else vmax, engine='matplotlib', colorbar=False,
+                       bg_map=np.r_[np.full(len(xyz) - 1, 0.25), 1.0])  # flat light grey for the rest of cortex
+    for mesh in ax.collections:
+        mesh.set_rasterized(True)  # keeps the PDFs small; text and axes stay vector
+    if marker is not None:
+        ax.computed_zorder = False  # draw the marker on top of the mesh
+        p = xyz[marker] + np.array([-5.0 if h == 'L' else 5.0, 0, 0])  # nudge towards the viewer
+        ax.scatter(*p, s=40, color='#ffd400', edgecolor=INK, linewidth=0.8, zorder=10, depthshade=False)
+
+
+def polar_profile(ax, profiles, colors, labels):
+    """Connectivity profile(s) over the 20 tracts as a closed polar line."""
+    th = np.linspace(0, 2 * np.pi, len(c.TRACTS), endpoint=False)
+    for prof, col, lab in zip(profiles, colors, labels):
+        ax.plot(np.r_[th, th[0]], np.r_[prof, prof[0]], color=col, lw=1.6, label=lab)
+        ax.fill(th, prof, color=col, alpha=0.18)
+    ax.set_xticks(th)
+    ax.set_xticklabels(c.TRACTS, fontsize=6)
+    ax.set_theta_zero_location('N')
+    ax.set_theta_direction(-1)
+    rmax = max(p.max() for p in profiles)
+    ax.set_ylim(0, rmax * 1.05)
+    ax.set_yticks(np.round(np.linspace(0, rmax, 4)[1:], 2))
+    ax.tick_params(axis='y', labelsize=5.5, colors='#5f6368')
+    ax.set_rlabel_position(99)
+    ax.grid(color=GRID, lw=0.6)
+    ax.spines['polar'].set_color(GRID)
+
+
+def selected_dims(scores, min_gain=0.1):
+    """The dimensionality rule of scripts 3 and 6: stop when the gain drops below min_gain or the score falls."""
+    for d in range(1, len(scores)):
+        if scores[d] < scores[d - 1] or scores[d] - scores[d - 1] < min_gain:
+            return d
+    return len(scores)
+
+
+def figure01(root, out):
+    rs = pd.read_csv(f'{root}/results/10_supplementary_statistics/reconstruction_scores.csv')
+    fig, axes = plt.subplots(1, 3, figsize=(10, 3), sharey=True)
+    for ax, (emb, title), s in zip(axes, [('chimpanzee', 'Chimpanzee'), ('human', 'Human'), ('cross-species', 'Cross-species')], 'ABC'):
+        y = rs.loc[rs.embedding == emb, 'reconstruction_r'].to_numpy()
+        x, d = np.arange(1, len(y) + 1), selected_dims(y)
+        ax.plot(x, y, color='#3b5b92', lw=2, marker='o', ms=5, mfc='white', mew=1.5)
+        ax.plot(d, y[d - 1], 'o', ms=8, color='#3b5b92')
+        ax.annotate(f'{d} gradients\nr = {y[d - 1]:.2f}', (d, y[d - 1]), xytext=(8, -26), textcoords='offset points')
+        ax.set(xticks=x, ylim=(0, 1), xlabel='Number of gradients')
+        ax.set_title(title, loc='left', fontsize=10)
+        ax.grid(axis='y', color=GRID, lw=0.6)
+        letter(ax, s)
+    axes[0].set_ylabel('Reconstruction score (r)')
+    save(fig, f'{out}/main/Figure01_dimensionality')
+
+
+def profile_figure(root, out, name, species, locations):
+    """Figures 3 and 6: one polar profile (all vertices of a location overlaid) and the brain location per letter."""
+    P = {h: c.profiles(root, species, h) for h in c.HEMIS}
+    n = len(locations)
+    fig = plt.figure(figsize=(2.7 * n, 4.0))
+    for i, (s, verts) in enumerate(locations.items()):
+        ax = fig.add_axes([(i + 0.17) / n, 0.36, 0.66 / n, 0.58], projection='polar')
+        polar_profile(ax, [P[h][c.vertex_row(root, species, h, v)] for h, v in verts],
+                      [COLOR[(species, h)] for h, _ in verts], [f'{h} vertex {v}' for h, v in verts])
+        ax.legend(loc='upper center', bbox_to_anchor=(0.5, -0.08), frameon=False, fontsize=6.5)
+        letter(ax, s, -0.1, 1.08)
+        for j, (h, v) in enumerate(verts):
+            bx = fig.add_axes([i / n + j * 0.5 / n, 0.0, 0.5 / n if len(verts) > 1 else 1 / n, 0.27], projection='3d')
+            brain(bx, root, species, h, marker=v)
+    save(fig, f'{out}/main/{name}')
+
+
+def figure09(root, out, seg, vertex, picks):
+    fig = plt.figure(figsize=(11, 4.6))
+    for gi in range(2):
+        vals = np.concatenate([vertex[k][:, gi] for k in KEYS])
+        vmin, vmax = np.percentile(vals, [1, 99])
+        for ki, k in enumerate(KEYS):
+            ax = fig.add_axes([0.0 + ki * 0.135, 0.52 - gi * 0.47, 0.15, 0.42], projection='3d')
+            brain(ax, root, *k, vertex[k][:, gi], vmin, vmax)
+            if gi == 0:
+                ax.set_title(f'{NAME[k[0]]} {k[1]}', fontsize=8, y=0.92)
+        fig.text(0.0, 0.93 - gi * 0.47, f'Cross-species G{gi + 1}', fontsize=9, fontweight='bold')
+    cax = fig.add_axes([0.2, 0.06, 0.15, 0.02])
+    cb = fig.colorbar(plt.cm.ScalarMappable(cmap=CMAP), cax=cax, orientation='horizontal', ticks=[0, 1])
+    cb.set_ticklabels(['min', 'max']); cb.outline.set_visible(False)
+    ax = fig.add_axes([0.62, 0.1, 0.36, 0.82])
+    for k in [('chimpanzee', 'L'), ('chimpanzee', 'R'), ('human', 'L'), ('human', 'R')]:
+        ax.scatter(seg[k][:, 0] * 1e3, seg[k][:, 1] * 1e3, s=3, lw=0, alpha=0.5, color=COLOR[k],
+                   label=f'{NAME[k[0]]} {k[1]}', rasterized=True)
+    for s, (k, row) in picks.items():
+        x, y = vertex[k][row, :2] * 1e3
+        ax.scatter([x], [y], s=120, facecolors='none', edgecolors=INK, lw=1.2, zorder=5)
+        ax.annotate(s, (x, y), xytext=(-14 if s == 'C' else 7, 4), textcoords='offset points', fontsize=11, fontweight='bold')
+    ax.set(xlabel='Cross-species G1 (x 10$^{-3}$)', ylabel='Cross-species G2 (x 10$^{-3}$)')
+    ax.axhline(0, color=GRID, lw=0.8, zorder=0); ax.axvline(0, color=GRID, lw=0.8, zorder=0)
+    ax.legend(frameon=False, markerscale=3, loc='lower left', fontsize=7)
+    save(fig, f'{out}/main/Figure09_cross_species')
+
+
+def figure10(root, out, labels, picks):
+    """A: human centroid with the lowest cross-species G2 (shown at its most typical vertex),
+    B: chimpanzee vertex with the lowest G2 (the one closest to the human end), C: chimpanzee vertex with the highest G2."""
+    fig = plt.figure(figsize=(9, 4.4))
+    for i, (s, (k, row)) in enumerate(picks.items()):
+        prof = c.centroids(root, labels, k[1])[labels[k][row]] if k[0] == 'human' else c.profiles(root, *k)[row]
+        v = c.mask_indices(root, *k)[row]
+        ax = fig.add_axes([i / 3 + 0.03, 0.38, 0.27, 0.52], projection='polar')
+        polar_profile(ax, [prof], [COLOR[k]], [None])
+        ax.set_title(f'{NAME[k[0]]} {k[1]} (vertex {v})', fontsize=8, pad=18)
+        letter(ax, s, -0.1, 1.1)
+        brain(fig.add_axes([i / 3 + 0.04, 0.0, 0.27, 0.3], projection='3d'), root, *k, marker=v)
+    save(fig, f'{out}/main/Figure10_cross_species_profiles')
+
+
+def gradient_grid(root, out, name, maps, keys, n_kept, n=10):
+    """Supplementary Figures S1-S3: rows = G1..Gn, columns = hemispheres (and species).
+    Each row has one colour scale across its columns (1st-99th percentile); retained gradients are labelled in bold."""
+    fig = plt.figure(figsize=(1.9 * len(keys), 1.25 * n))
+    for g in range(n):
+        vmin, vmax = np.percentile(np.concatenate([maps[k][:, g] for k in keys]), [1, 99])
+        for j, k in enumerate(keys):
+            ax = fig.add_axes([0.06 + j * 0.94 / len(keys), 1 - (g + 1) / n, 0.94 / len(keys), 1 / n], projection='3d')
+            brain(ax, root, *k, maps[k][:, g], vmin, vmax)
+            if g == 0:
+                ax.set_title(f'{NAME[k[0]]} {k[1]}', fontsize=9, y=0.95)
+        fig.text(0.0, 1 - (g + 0.5) / n, f'G{g + 1}', fontsize=10, va='center',
+                 fontweight='bold' if g < n_kept else 'normal', color=INK if g < n_kept else '#5f6368')
+    cax = fig.add_axes([0.35, -0.02, 0.3, 0.008])
+    cb = fig.colorbar(plt.cm.ScalarMappable(cmap=CMAP), cax=cax, orientation='horizontal', ticks=[0, 1])
+    cb.set_ticklabels(['min', 'max']); cb.outline.set_visible(False)
+    save(fig, f'{out}/supplementary/{name}')
+
+
+def figure_s4(out, seg):
+    fig, axes = plt.subplots(3, 3, figsize=(9, 8.4))
+    for g, ax in zip(range(1, 10), axes.flat):
+        for k in [('chimpanzee', 'L'), ('chimpanzee', 'R'), ('human', 'L'), ('human', 'R')]:
+            ax.scatter(seg[k][:, 0] * 1e3, seg[k][:, g] * 1e3, s=1.5, lw=0, alpha=0.5, color=COLOR[k],
+                       label=f'{NAME[k[0]]} {k[1]}', rasterized=True)
+        ax.set(xlabel='G1 (x 10$^{-3}$)', ylabel=f'G{g + 1} (x 10$^{{-3}}$)')
+    axes[0, 0].legend(frameon=False, markerscale=4, fontsize=6.5)
+    fig.tight_layout()
+    save(fig, f'{out}/supplementary/FigureS4_cross_species_G1_vs_G2-G10')
+
+
+def figure_s5(root, out, seg):
+    st = pd.read_csv(f'{root}/results/10_supplementary_statistics/g1_spread.csv').set_index('hemisphere')
+    fig, axes = plt.subplots(1, 2, figsize=(8, 2.8), sharey=True)
+    bins = np.linspace(-6, 9, 46)
+    for ax, h in zip(axes, c.HEMIS):
+        for sp in ['chimpanzee', 'human']:
+            v = seg[(sp, h)][:, 0] * 1e3
+            ax.hist(v, bins, histtype='stepfilled', color=COLOR[(sp, h)], alpha=0.25)
+            ax.hist(v, bins, histtype='step', color=COLOR[(sp, h)], lw=1.6, label=f'{NAME[sp]} {h} (SD {v.std(ddof=1):.2f})')
+        ax.legend(frameon=False, loc='upper right', fontsize=7.5,
+                  title=f'Human SD = {100 * st.loc[h, "ratio"]:.0f}% of chimpanzee SD', title_fontsize=7.5)
+        ax.set(xlabel='Cross-species G1 (x 10$^{-3}$)', ylim=(0, 560))
+        ax.set_title('Left hemisphere' if h == 'L' else 'Right hemisphere', loc='left', fontsize=10)
+        ax.grid(axis='y', color=GRID, lw=0.6)
+    axes[0].set_ylabel('Number of profiles')
+    save(fig, f'{out}/supplementary/FigureS5_G1_spread')
+
+
+def main(root, out):
+    ss = c.single_species(root)
+    seg, vertex, labels = c.cross_species(root)
+
+    # Locations at the ends of cross-species G2 (Figures 9 and 10), chosen by rule rather than by hand.
+    hum = min(c.HEMIS, key=lambda h: vertex[('human', h)][:, 1].min())
+    lab = labels[('human', hum)]
+    centroid = lab[np.argmin(vertex[('human', hum)][:, 1])]
+    members = np.flatnonzero(lab == centroid)
+    C = c.centroids(root, labels, hum)[centroid]
+    row_a = members[np.argmin(((c.profiles(root, 'human', hum)[members] - C) ** 2).sum(1))]
+    lo = min(c.HEMIS, key=lambda h: vertex[('chimpanzee', h)][:, 1].min())
+    hi = max(c.HEMIS, key=lambda h: vertex[('chimpanzee', h)][:, 1].max())
+    picks = {'A': (('human', hum), row_a),
+             'B': (('chimpanzee', lo), int(np.argmin(vertex[('chimpanzee', lo)][:, 1]))),
+             'C': (('chimpanzee', hi), int(np.argmax(vertex[('chimpanzee', hi)][:, 1])))}
+
+    figure01(root, out)
+    profile_figure(root, out, 'Figure03_chimpanzee_profiles', 'chimpanzee', FIG3)
+    profile_figure(root, out, 'Figure06_human_profiles', 'human', FIG6)
+    figure09(root, out, seg, vertex, picks)
+    figure10(root, out, labels, picks)
+    rs = pd.read_csv(f'{root}/results/10_supplementary_statistics/reconstruction_scores.csv')
+    kept = {e: selected_dims(rs.loc[rs.embedding == e, 'reconstruction_r'].to_numpy()) for e in rs.embedding.unique()}
+    gradient_grid(root, out, 'FigureS1_human_gradients_G1-G10', ss, [('human', 'L'), ('human', 'R')], kept['human'])
+    gradient_grid(root, out, 'FigureS2_chimpanzee_gradients_G1-G10', ss, [('chimpanzee', 'L'), ('chimpanzee', 'R')], kept['chimpanzee'])
+    gradient_grid(root, out, 'FigureS3_cross_species_gradients_G1-G10', vertex, KEYS, kept['cross-species'])
+    figure_s4(out, seg)
+    figure_s5(root, out, seg)
+
+
+if __name__ == '__main__':
+    parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    parser.add_argument('--project_root', default='.')
+    args = parser.parse_args()
+    main(args.project_root, os.path.join(args.project_root, 'results', '11_thesis_figures'))

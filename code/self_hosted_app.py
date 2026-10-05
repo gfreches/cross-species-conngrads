@@ -99,7 +99,7 @@ DEPLOY_CROSS_SPECIES_GRAD_DIR_OVERRIDE = os.path.join(
 DEFAULT_N_TRACTS = 20
 DEFAULT_TRACT_NAMES = [
     "AC", "AF", "AR", "CBD", "CBP", "CBT", "CST", "FA",
-    "FMI", "FMA", "FX", "IFOF", "ILF", "MDLF",
+    "FMA", "FMI", "FX", "IFOF", "ILF", "MDLF",
     "OR", "SLF I", "SLF II", "SLF III", "UF", "VOF",
 ]
 

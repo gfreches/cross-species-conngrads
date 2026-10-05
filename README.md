@@ -17,6 +17,8 @@ You can also find an online version of the 2-D interactive plot of this work in 
     * [Script 7: Interactive Gradient Visualization (Dash App)](#script-7-interactive-gradient-visualization-dash-app)
     * [Script 8: Plot Cross-Species Gradients (Static Scatter Plots)](#script-8-plot-cross-species-gradients-static-scatter-plots)
     * [Script 9: Run Permutation Analysis](#script-9-run-permutation-analysis)
+    * [Script 10: Supplementary Statistics](#script-10-supplementary-statistics)
+    * [Script 11: Thesis Figures](#script-11-thesis-figures)
 
 5.  [Self-Hosted Deployment](#self-hosted-deployment)
 6.  [Outputs](#outputs)
@@ -81,8 +83,10 @@ your_project_root/
 │   │   └── <species_name>/         # Remapped cross-species gradients per species
 │   │       └── cross_species_gradients_remapped/
 │   ├── 8_static_cross_species_plots/ # Output of Script 8
-│   └── 9_permutation_analysis/      # Output of Script 9
-└── code/                        # Where your Python scripts (1-9) reside
+│   ├── 9_permutation_analysis/      # Output of Script 9
+│   ├── 10_supplementary_statistics/ # Output of Script 10 (CSV and JSON tables)
+│   └── 11_thesis_figures/           # Output of Script 11 (main/ and supplementary/, PNG and PDF)
+└── code/                        # Where your Python scripts reside
     ├── 1_average_blueprints.py
     ├── 2_mask_blueprints.py
     ├── 3_individual_species_gradients.py
@@ -91,7 +95,10 @@ your_project_root/
     ├── 6_create_cross_species_gradients.py
     ├── 7_interactive_plot_cross_species.py
     ├── 8_plot_cross_species_gradients.py
-    └── 9_run_permutation_analysis.py
+    ├── 9_run_permutation_analysis.py
+    ├── 10_supplementary_statistics.py
+    ├── 11_thesis_figures.py
+    └── common.py                   # Loaders shared by scripts 10 and 11
 
 ```
 
@@ -327,6 +334,36 @@ This pipeline processes connectivity blueprints through several stages:
     * `--n_permutations`: **(Optional)** The number of permutations to run for the test. (Default: 10000)
     * `--alpha`: **(Optional)** The significance level for the test. (Default: 0.01)
     * `--no_histograms`: **(Optional)** A flag to disable saving histogram plots of the null distributions. (Default: False, meaning histograms are generated)
+
+### Script 10: Supplementary Statistics
+* **Name**: `10_supplementary_statistics.py`
+* **Function**: Adds the statistics reported in the thesis chapter on top of the outputs of scripts 2, 3 and 6. Nothing is recomputed, so the numbers match the gradients already on disk. It writes to `results/10_supplementary_statistics/`:
+    * `reconstruction_scores.csv`: reconstruction score for 1 to 10 gradients (single-species and cross-species), the values behind the dimensionality plots
+    * `tests.csv`: the 13 permutation tests of script 9 with Cohen's d, repeated on the means of 50 and 100 spatially contiguous parcels per hemisphere (k-means on the inflated surface coordinates)
+    * `g1_spread.csv`: SD of cross-species G1 for human centroids and chimpanzee vertices, with a permutation test
+    * `correspondence.csv`: correlations between single-species and cross-species gradients (G1 to G4)
+    * `best_match.csv`: median eta2 of each profile's best match in each species and hemisphere (rows are the source group)
+    * `summary.json`: share of edges in the cross-species kNN graph that link the two species, and the two hemispheres within each species, share of profile variance kept by the k-means centroids, regression of cross-species G2 on human G1 to G3, quadratic fit of cross-species G2 on G1, and a spatial null (BrainSMASH, geodesic distances on the inflated surface) for the correlation between human G3 and cross-species G2
+* **Example Usage**:
+    ```bash
+    python code/10_supplementary_statistics.py                    # about 30 minutes, mostly the spatial null
+    python code/10_supplementary_statistics.py --n_surrogates 0   # skip the spatial null
+    ```
+
+### Script 11: Thesis Figures
+* **Name**: `11_thesis_figures.py`
+* **Function**: Draws the thesis figures from the outputs of scripts 2, 3, 6 and 10 into `results/11_thesis_figures/main` and `results/11_thesis_figures/supplementary` (PNG at 300 dpi and PDF):
+    * Figure 1: reconstruction score against the number of gradients
+    * Figures 3 and 6: connectivity profiles at the chimpanzee and human locations
+    * Figure 9: cross-species G1 and G2 on the surfaces, and all profiles in the G1-G2 space
+    * Figure 10: profiles at the ends of cross-species G2 (A: human end, B: the chimpanzee vertex closest to it, C: chimpanzee end)
+    * Figures S1-S3: human, chimpanzee and cross-species gradients G1 to G10 on the surfaces
+    * Figure S4: cross-species G1 against G2 to G10
+    * Figure S5: spread of the human and chimpanzee values along cross-species G1
+* **Example Usage**:
+    ```bash
+    python code/11_thesis_figures.py   # run script 10 first
+    ```
 
 ## Self-Hosted Deployment
 
