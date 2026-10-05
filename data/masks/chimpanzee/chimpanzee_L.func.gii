@@ -10,7 +10,7 @@
       </MD>
       <MD>
          <Name><![CDATA[ParentProvenance]]></Name>
-         <Value><![CDATA[/Users/guilhermeblazquezfreches/Desktop/Thesis/Data/surfaces/chimpanzee/ChimpYerkes29.L.inflated.20k_fs_LR.surf.gii:
+         <Value><![CDATA[data/surfaces/chimpanzee/ChimpYerkes29.L.inflated.20k_fs_LR.surf.gii:
 /media/2TBB/Connectome_Project/Pipelines/global/binaries/caret7/bin_rh_linux64/../exe_rh_linux64/wb_command -surface-resample /media/myelin/brainmappers/MyelinMapping_Project/Chimps/Agatha_Preuss_20110211/MNINonLinear/Native/Agatha_Preuss_20110211.L.midthickness.native.surf.gii /media/myelin/brainmappers/MyelinMapping_Project/Chimps/Agatha_Preuss_20110211/MNINonLinear/Native/Agatha_Preuss_20110211.L.sphere.MSMSulc.native.surf.gii /media/myelin/brainmappers/MyelinMapping_Project/Chimps/Agatha_Preuss_20110211/MNINonLinear/fsaverage_LR20k/Agatha_Preuss_20110211.L.sphere.20k_fs_LR.surf.gii BARYCENTRIC /media/myelin/brainmappers/MyelinMapping_Project/Chimps/Agatha_Preuss_20110211/MNINonLinear/fsaverage_LR20k/Agatha_Preuss_20110211.L.midthickness.20k_fs_LR.surf.gii
 
 ]]></Value>
@@ -33,7 +33,7 @@ Compiled with OpenMP: YES
       </MD>
       <MD>
          <Name><![CDATA[Provenance]]></Name>
-         <Value><![CDATA[/Applications/workbench/bin_macosxub/../macosxub_apps/wb_command.app/Contents/MacOS/wb_command -border-to-rois /Users/guilhermeblazquezfreches/Desktop/Thesis/Data/surfaces/chimpanzee/ChimpYerkes29.L.inflated.20k_fs_LR.surf.gii /Users/guilhermeblazquezfreches/Desktop/Thesis/Data/surfaces/chimpanzee/temp_l.border /Users/guilhermeblazquezfreches/Desktop/Thesis/Data/surfaces/chimpanzee/temp_l.func.gii]]></Value>
+         <Value><![CDATA[/Applications/workbench/bin_macosxub/../macosxub_apps/wb_command.app/Contents/MacOS/wb_command -border-to-rois data/surfaces/chimpanzee/ChimpYerkes29.L.inflated.20k_fs_LR.surf.gii data/surfaces/chimpanzee/temp_l.border data/surfaces/chimpanzee/temp_l.func.gii]]></Value>
       </MD>
       <MD>
          <Name><![CDATA[WorkingDirectory]]></Name>
