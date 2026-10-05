@@ -1,7 +1,9 @@
+brainsmash
 dash
 flask
 matplotlib
 nibabel
+nilearn
 numba
 numpy
 pandas
