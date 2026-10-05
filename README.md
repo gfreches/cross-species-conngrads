@@ -18,7 +18,7 @@ You can also find an online version of the 2-D interactive plot of this work in 
     * [Script 8: Plot Cross-Species Gradients (Static Scatter Plots)](#script-8-plot-cross-species-gradients-static-scatter-plots)
     * [Script 9: Run Permutation Analysis](#script-9-run-permutation-analysis)
     * [Script 10: Supplementary Statistics](#script-10-supplementary-statistics)
-    * [Script 11: Thesis Figures](#script-11-thesis-figures)
+    * [Script 11: Figures](#script-11-figures)
 
 5.  [Self-Hosted Deployment](#self-hosted-deployment)
 6.  [Outputs](#outputs)
@@ -85,7 +85,7 @@ your_project_root/
 │   ├── 8_static_cross_species_plots/ # Output of Script 8
 │   ├── 9_permutation_analysis/      # Output of Script 9
 │   ├── 10_supplementary_statistics/ # Output of Script 10 (CSV and JSON tables)
-│   └── 11_thesis_figures/           # Output of Script 11 (main/ and supplementary/, PNG and PDF)
+│   └── 11_figures/                  # Output of Script 11 (main/ and supplementary/, PNG and PDF)
 └── code/                        # Where your Python scripts reside
     ├── 1_average_blueprints.py
     ├── 2_mask_blueprints.py
@@ -97,7 +97,7 @@ your_project_root/
     ├── 8_plot_cross_species_gradients.py
     ├── 9_run_permutation_analysis.py
     ├── 10_supplementary_statistics.py
-    ├── 11_thesis_figures.py
+    ├── 11_figures.py
     └── common.py                   # Loaders shared by scripts 10 and 11
 
 ```
@@ -337,7 +337,7 @@ This pipeline processes connectivity blueprints through several stages:
 
 ### Script 10: Supplementary Statistics
 * **Name**: `10_supplementary_statistics.py`
-* **Function**: Adds the statistics reported in the thesis chapter on top of the outputs of scripts 2, 3 and 6. Nothing is recomputed, so the numbers match the gradients already on disk. It writes to `results/10_supplementary_statistics/`:
+* **Function**: Adds the statistics reported in the paper on top of the outputs of scripts 2, 3 and 6. Nothing is recomputed, so the numbers match the gradients already on disk. It writes to `results/10_supplementary_statistics/`:
     * `reconstruction_scores.csv`: reconstruction score for 1 to 10 gradients (single-species and cross-species), the values behind the dimensionality plots
     * `tests.csv`: the 13 permutation tests of script 9 with Cohen's d, repeated on the means of 50 and 100 spatially contiguous parcels per hemisphere (k-means on the inflated surface coordinates)
     * `permutation_nulls.npz`: the null distributions of those 13 tests, used for Figures 4, 7, 11 and 12
@@ -351,9 +351,9 @@ This pipeline processes connectivity blueprints through several stages:
     python code/10_supplementary_statistics.py --n_surrogates 0   # skip the spatial null
     ```
 
-### Script 11: Thesis Figures
-* **Name**: `11_thesis_figures.py`
-* **Function**: Draws every figure of the thesis chapter, in one style, from the outputs of scripts 2, 3, 6 and 10 into `results/11_thesis_figures/main` and `results/11_thesis_figures/supplementary` (PNG at 300 dpi and PDF):
+### Script 11: Figures
+* **Name**: `11_figures.py`
+* **Function**: Draws every figure of the paper, in one style, from the outputs of scripts 2, 3, 6 and 10 into `results/11_figures/main` and `results/11_figures/supplementary` (PNG at 300 dpi and PDF):
     * Figure 1: reconstruction score against the number of gradients
     * Figures 2 and 5: chimpanzee and human gradients on the surfaces, and the profiles in gradient space with the locations of Figures 3 and 6
     * Figures 3 and 6: connectivity profiles at the chimpanzee and human locations
@@ -366,7 +366,7 @@ This pipeline processes connectivity blueprints through several stages:
     * Figure S5: spread of the human and chimpanzee values along cross-species G1
 * **Example Usage**:
     ```bash
-    python code/11_thesis_figures.py   # run script 10 first
+    python code/11_figures.py   # run script 10 first
     ```
 
 ## Self-Hosted Deployment

@@ -1,7 +1,7 @@
-"""Figures for the thesis chapter on human-chimpanzee temporal lobe gradients.
+"""Figures for the paper on human-chimpanzee temporal lobe connectivity gradients.
 
 Reads the outputs of scripts 2, 3, 6 and 10 and writes PNG (300 dpi) and PDF files to
-results/11_thesis_figures/main and results/11_thesis_figures/supplementary:
+results/11_figures/main and results/11_figures/supplementary:
 
   main/Figure01_dimensionality          reconstruction score vs number of gradients (chimpanzee, human, cross-species)
   main/Figure02_chimpanzee_gradients    chimpanzee G1 and G2 on the surfaces, and the profiles in G1-G2 space
@@ -20,7 +20,7 @@ results/11_thesis_figures/main and results/11_thesis_figures/supplementary:
   supplementary/FigureS5                spread of the human and chimpanzee values along cross-species G1
 
 Usage (from the project root, after script 10):
-    python code/11_thesis_figures.py
+    python code/11_figures.py
 """
 import argparse
 import os
@@ -364,4 +364,4 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument('--project_root', default='.')
     args = parser.parse_args()
-    main(args.project_root, os.path.join(args.project_root, 'results', '11_thesis_figures'))
+    main(args.project_root, os.path.join(args.project_root, 'results', '11_figures'))
