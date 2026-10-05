@@ -37,7 +37,7 @@ import common as c
 # Species/hemisphere colours (checked for colour-blind separation) and the gradient colour map.
 COLOR = {('human', 'L'): '#1f4e9c', ('human', 'R'): '#4f8fe6', ('chimpanzee', 'L'): '#b2182b', ('chimpanzee', 'R'): '#e8604f'}
 NAME = {'human': 'Human', 'chimpanzee': 'Chimpanzee'}
-CMAP = 'Spectral_r'
+CMAP = 'RdBu_r'  # same as the interactive website
 INK, GRID = '#1a1a1a', '#e3e3e3'
 KEYS = [('human', 'L'), ('human', 'R'), ('chimpanzee', 'L'), ('chimpanzee', 'R')]
 
