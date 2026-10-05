@@ -83,6 +83,18 @@ def centroids(root, labels, h):
     return C / np.bincount(lab)[:, None]
 
 
+def eta2(A, B):
+    """eta2 similarity between the rows of A and B (same formula and thresholds as eta2() in scripts 3 and 6)."""
+    p = A.shape[1]
+    sa, sb = A.sum(1)[:, None], B.sum(1)[None]
+    qa, qb = (A ** 2).sum(1)[:, None], (B ** 2).sum(1)[None]
+    ssw = np.maximum((qa + qb - 2 * A @ B.T) / 2, 0)
+    sst = ssw if p == 1 else qa + qb - (sa + sb) ** 2 / (2 * p)  # with one feature SST equals SSW
+    with np.errstate(divide='ignore', invalid='ignore'):
+        S = np.where(sst >= 1e-9, 1 - ssw / sst, (ssw < 1e-9).astype(float))
+    return np.clip(S, 0, None)
+
+
 def vertex_row(root, species, h, vertex):
     """Row of a surface vertex within that hemisphere's temporal lobe arrays."""
     idx = mask_indices(root, species, h)

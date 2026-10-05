@@ -340,21 +340,25 @@ This pipeline processes connectivity blueprints through several stages:
 * **Function**: Adds the statistics reported in the thesis chapter on top of the outputs of scripts 2, 3 and 6. Nothing is recomputed, so the numbers match the gradients already on disk. It writes to `results/10_supplementary_statistics/`:
     * `reconstruction_scores.csv`: reconstruction score for 1 to 10 gradients (single-species and cross-species), the values behind the dimensionality plots
     * `tests.csv`: the 13 permutation tests of script 9 with Cohen's d, repeated on the means of 50 and 100 spatially contiguous parcels per hemisphere (k-means on the inflated surface coordinates)
+    * `permutation_nulls.npz`: the null distributions of those 13 tests, used for Figures 4, 7, 11 and 12
     * `g1_spread.csv`: SD of cross-species G1 for human centroids and chimpanzee vertices, with a permutation test
     * `correspondence.csv`: correlations between single-species and cross-species gradients (G1 to G4)
     * `best_match.csv`: median eta2 of each profile's best match in each species and hemisphere (rows are the source group)
     * `summary.json`: share of edges in the cross-species kNN graph that link the two species, and the two hemispheres within each species, share of profile variance kept by the k-means centroids, regression of cross-species G2 on human G1 to G3, quadratic fit of cross-species G2 on G1, and a spatial null (BrainSMASH, geodesic distances on the inflated surface) for the correlation between human G3 and cross-species G2
 * **Example Usage**:
     ```bash
-    python code/10_supplementary_statistics.py                    # about 30 minutes, mostly the spatial null
+    python code/10_supplementary_statistics.py                    # about 45 minutes, mostly the spatial null
     python code/10_supplementary_statistics.py --n_surrogates 0   # skip the spatial null
     ```
 
 ### Script 11: Thesis Figures
 * **Name**: `11_thesis_figures.py`
-* **Function**: Draws the thesis figures from the outputs of scripts 2, 3, 6 and 10 into `results/11_thesis_figures/main` and `results/11_thesis_figures/supplementary` (PNG at 300 dpi and PDF):
+* **Function**: Draws every figure of the thesis chapter, in one style, from the outputs of scripts 2, 3, 6 and 10 into `results/11_thesis_figures/main` and `results/11_thesis_figures/supplementary` (PNG at 300 dpi and PDF):
     * Figure 1: reconstruction score against the number of gradients
+    * Figures 2 and 5: chimpanzee and human gradients on the surfaces, and the profiles in gradient space with the locations of Figures 3 and 6
     * Figures 3 and 6: connectivity profiles at the chimpanzee and human locations
+    * Figures 4, 7, 11 and 12: permutation tests (null distribution and observed difference) from script 10
+    * Figure 8: eta2 between human vertices before and after the k-means step of script 5
     * Figure 9: cross-species G1 and G2 on the surfaces, and all profiles in the G1-G2 space
     * Figure 10: profiles at the ends of cross-species G2 (A: human end, B: the chimpanzee vertex closest to it, C: chimpanzee end)
     * Figures S1-S3: human, chimpanzee and cross-species gradients G1 to G10 on the surfaces

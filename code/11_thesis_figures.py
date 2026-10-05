@@ -4,10 +4,17 @@ Reads the outputs of scripts 2, 3, 6 and 10 and writes PNG (300 dpi) and PDF fil
 results/11_thesis_figures/main and results/11_thesis_figures/supplementary:
 
   main/Figure01_dimensionality          reconstruction score vs number of gradients (chimpanzee, human, cross-species)
+  main/Figure02_chimpanzee_gradients    chimpanzee G1 and G2 on the surfaces, and the profiles in G1-G2 space
   main/Figure03_chimpanzee_profiles     connectivity profiles at the chimpanzee locations A-D (left and right vertex)
+  main/Figure04_chimpanzee_tests        permutation tests, chimpanzee left vs right (G1, G2)
+  main/Figure05_human_gradients         human G1-G3 on the surfaces, and the profiles in G1-G2 and G1-G3 space
   main/Figure06_human_profiles          connectivity profiles at the human locations A-E
+  main/Figure07_human_tests             permutation tests, human left vs right (G1-G3)
+  main/Figure08_kmeans_check            eta2 between human vertices before and after the k-means step of script 5
   main/Figure09_cross_species           cross-species G1 and G2 on the surfaces, and all profiles in G1-G2 space
   main/Figure10_cross_species_profiles  profiles at the ends of cross-species G2 (A-C, chosen by rule, see below)
+  main/Figure11_lateralization_tests    permutation tests, left vs right in the cross-species space
+  main/Figure12_species_tests           permutation tests, human vs chimpanzee in the cross-species space
   supplementary/FigureS1-S3             single-species (human, chimpanzee) and cross-species gradients G1-G10
   supplementary/FigureS4                cross-species G1 against G2-G10
   supplementary/FigureS5                spread of the human and chimpanzee values along cross-species G1
@@ -134,6 +141,90 @@ def profile_figure(root, out, name, species, locations):
     save(fig, f'{out}/main/{name}')
 
 
+def species_figure(root, out, name, ss, sp, locations, panels):
+    """Figures 2 and 5: single-species gradients on the surfaces (one colour scale per row, 1st-99th percentile) and
+    the profiles in gradient space, with the locations of Figure 3 or 6 circled. panels: [(y gradient, letters)]."""
+    keys, n = [(sp, 'L'), (sp, 'R')], max(g for g, _ in panels) + 1
+    fig = plt.figure(figsize=(9, 2.3 * n))
+    hh = 0.86 / n
+    for g in range(n):
+        vmin, vmax = np.percentile(np.concatenate([ss[k][:, g] for k in keys]), [1, 99])
+        for j, k in enumerate(keys):
+            ax = fig.add_axes([0.02 + j * 0.27, 0.93 - (g + 1) * hh, 0.31, hh * 1.12], projection='3d')
+            brain(ax, root, *k, ss[k][:, g], vmin, vmax)
+            if g == 0:
+                ax.set_title(f'{NAME[sp]} {k[1]}', fontsize=8, y=0.92)
+        fig.text(0.0, 0.95 - (g + 0.15) * hh, f'G{g + 1}', fontsize=9, fontweight='bold')
+    cax = fig.add_axes([0.17, 0.06, 0.2, 0.025 * 2 / n])
+    cb = fig.colorbar(plt.cm.ScalarMappable(cmap=CMAP), cax=cax, orientation='horizontal', ticks=[0, 1])
+    cb.set_ticklabels(['min', 'max']); cb.outline.set_visible(False)
+    ph = (0.84 - 0.1 * (len(panels) - 1)) / len(panels)
+    for i, (gy, letters) in enumerate(panels):
+        ax = fig.add_axes([0.63, 0.94 - (i + 1) * ph - i * 0.1, 0.35, ph])
+        for k in keys:
+            ax.scatter(ss[k][:, 0] * 1e3, ss[k][:, gy] * 1e3, s=3, lw=0, alpha=0.5, color=COLOR[k],
+                       label=f'{NAME[sp]} {k[1]}', rasterized=True)
+        for s in letters:
+            xy = [ss[(sp, h)][c.vertex_row(root, sp, h, v), [0, gy]] * 1e3 for h, v in locations[s]]
+            for j, (x, y) in enumerate(xy):
+                ax.scatter([x], [y], s=120, facecolors='none', edgecolors=INK, lw=1.2, zorder=5)
+                if j == 0 or np.hypot(*(xy[j] - xy[0])) > 1:  # label the left and right vertex once if they overlap
+                    ax.annotate(s, (x, y), xytext=(7, 4), textcoords='offset points', fontsize=11, fontweight='bold')
+        ax.set(xlabel='G1 (x 10$^{-3}$)', ylabel=f'G{gy + 1} (x 10$^{{-3}}$)')
+        ax.axhline(0, color=GRID, lw=0.8, zorder=0); ax.axvline(0, color=GRID, lw=0.8, zorder=0)
+        if i == 0:
+            ax.legend(frameon=False, markerscale=3, fontsize=7, loc='best')
+    save(fig, f'{out}/main/{name}')
+
+
+def null_figure(root, out, name, tests, ncols=2):
+    """Figures 4, 7, 11 and 12: null distribution (10,000 label permutations, script 10) and observed difference."""
+    z = np.load(f'{root}/results/10_supplementary_statistics/permutation_nulls.npz')
+    T = pd.read_csv(f'{root}/results/10_supplementary_statistics/tests.csv').set_index('test')
+    nrows = -(-len(tests) // ncols)
+    fig, axes = plt.subplots(nrows, ncols, figsize=(3.6 * ncols, 2.5 * nrows + 0.3), squeeze=False)
+    for ax, s, (test, title) in zip(axes.flat, 'ABCDE', tests):
+        null = z['null'][list(z['test']).index(test)] * 1e3
+        obs, p = T.loc[test, 'difference'] * 1e3, T.loc[test, 'p']
+        col = '#6b6b6b' if 'vs chimpanzee' in test else COLOR[(test.split()[0], 'L')]
+        ax.hist(null, 50, histtype='stepfilled', color=col, alpha=0.25)
+        ax.hist(null, 50, histtype='step', color=col, lw=1.2)
+        ax.axvline(obs, color=INK, lw=1.4, ls='--')
+        ax.set_ylim(0, ax.get_ylim()[1] * 1.25)  # headroom so the p value never sits on the bars
+        right = obs < np.median(null)  # p value on the side away from the observed line
+        ax.text(0.97 if right else 0.03, 0.95, 'p < 0.0001' if p == 0 else f'p = {p:.2g}', transform=ax.transAxes,
+                ha='right' if right else 'left', va='top')
+        ax.set_title(title, loc='left', fontsize=9)
+        ax.set_xlabel('Difference in means (x 10$^{-3}$)')
+        ax.grid(axis='y', color=GRID, lw=0.6)
+        letter(ax, s, -0.16, 1.06)
+    for ax in axes[:, 0]:
+        ax.set_ylabel('Permutations')
+    handles = [matplotlib.patches.Patch(facecolor='#e6e6e6', edgecolor='#6b6b6b', label='Null distribution (10,000 permutations)'),
+               matplotlib.lines.Line2D([], [], color=INK, lw=1.4, ls='--', label='Observed difference')]
+    fig.tight_layout(rect=(0, 0.06 / nrows, 1, 1))
+    fig.legend(handles=handles, loc='lower center', ncol=2, frameon=False, fontsize=7.5)
+    save(fig, f'{out}/main/{name}')
+
+
+def figure08(root, out, labels):
+    """eta2 between all pairs of human vertices: original profiles vs the profile of each vertex's k-means centroid."""
+    fig, axes = plt.subplots(1, 2, figsize=(8, 3.5), sharey=True)
+    for ax, h, s in zip(axes, c.HEMIS, 'AB'):
+        P, lab = c.profiles(root, 'human', h), labels[('human', h)]
+        iu = np.triu_indices(len(P), 1)
+        x, y = c.eta2(P, P)[iu], c.eta2(*[c.centroids(root, labels, h)[lab]] * 2)[iu]
+        cmap = matplotlib.colors.LinearSegmentedColormap.from_list('', ['#dce6f5', COLOR[('human', h)]])
+        ax.hexbin(x, y, gridsize=150, bins='log', cmap=cmap, mincnt=1, linewidths=0, rasterized=True)
+        ax.plot([0, 1], [0, 1], color='#5f6368', lw=0.8, ls='--', zorder=0)
+        ax.text(0.04, 0.95, f'r = {np.corrcoef(x, y)[0, 1]:.4f}', transform=ax.transAxes, va='top')
+        ax.set(xlim=(0, 1), ylim=(0, 1), aspect='equal', xlabel='eta$^2$, vertex profiles')
+        ax.set_title(f'Human {h}: {len(P):,} vertices, {lab.max() + 1:,} centroids', loc='left', fontsize=9)
+        letter(ax, s)
+    axes[0].set_ylabel('eta$^2$, centroid profiles')
+    save(fig, f'{out}/main/Figure08_kmeans_check')
+
+
 def figure09(root, out, seg, vertex, picks):
     fig = plt.figure(figsize=(11, 4.6))
     for gi in range(2):
@@ -243,11 +334,23 @@ def main(root, out):
              'B': (('chimpanzee', lo), int(np.argmin(vertex[('chimpanzee', lo)][:, 1]))),
              'C': (('chimpanzee', hi), int(np.argmax(vertex[('chimpanzee', hi)][:, 1])))}
 
+    lr = lambda sp, g, kind: (f'{sp} L vs R, {kind} G{g}', f'{NAME[sp]}, left vs right: {kind} G{g}')
+    hc = lambda h, g: (f'human {h} vs chimpanzee {h}, cross-species G{g}',
+                       f'Human vs chimpanzee, {"left" if h == "L" else "right"}: cross-species G{g}')
+
     figure01(root, out)
+    species_figure(root, out, 'Figure02_chimpanzee_gradients', ss, 'chimpanzee', FIG3, [(1, 'ABCD')])
     profile_figure(root, out, 'Figure03_chimpanzee_profiles', 'chimpanzee', FIG3)
+    null_figure(root, out, 'Figure04_chimpanzee_tests', [lr('chimpanzee', g, 'single-species') for g in (1, 2)])
+    species_figure(root, out, 'Figure05_human_gradients', ss, 'human', FIG6, [(1, 'ABC'), (2, 'DE')])
     profile_figure(root, out, 'Figure06_human_profiles', 'human', FIG6)
+    null_figure(root, out, 'Figure07_human_tests', [lr('human', g, 'single-species') for g in (1, 2, 3)], ncols=3)
+    figure08(root, out, labels)
     figure09(root, out, seg, vertex, picks)
     figure10(root, out, labels, picks)
+    null_figure(root, out, 'Figure11_lateralization_tests',
+                [lr(sp, g, 'cross-species') for g in (1, 2) for sp in ('human', 'chimpanzee')])
+    null_figure(root, out, 'Figure12_species_tests', [hc(h, g) for g in (1, 2) for h in c.HEMIS])
     rs = pd.read_csv(f'{root}/results/10_supplementary_statistics/reconstruction_scores.csv')
     kept = {e: selected_dims(rs.loc[rs.embedding == e, 'reconstruction_r'].to_numpy()) for e in rs.embedding.unique()}
     gradient_grid(root, out, 'FigureS1_human_gradients_G1-G10', ss, [('human', 'L'), ('human', 'R')], kept['human'])

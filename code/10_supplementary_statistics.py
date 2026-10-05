@@ -7,6 +7,7 @@ results/10_supplementary_statistics/:
                              the same computation as the dimensionality plots of scripts 3 and 6
   tests.csv                  the 13 permutation tests of script 9 with Cohen's d, plus the same tests
                              on 50 and 100 spatially contiguous parcels per hemisphere
+  permutation_nulls.npz      the vertex-level null distributions of those 13 tests (for Figures 4, 7, 11, 12)
   g1_spread.csv              SD of cross-species G1, human centroids vs chimpanzee vertices (permutation test)
   correspondence.csv         Pearson r between single-species and cross-species gradients (G1-G4)
   best_match.csv             median eta2 of each profile's best match in each species and hemisphere (rows = source)
@@ -35,18 +36,6 @@ np.row_stack = np.vstack  # brainsmash still calls np.row_stack, which numpy 2 r
 
 # ---------- reconstruction score (eta2 similarity of profiles vs eta2 of the embedding) ----------
 
-def eta2(A, B):
-    """eta2 similarity between the rows of A and B (same formula and thresholds as eta2() in scripts 3 and 6)."""
-    p = A.shape[1]
-    sa, sb = A.sum(1)[:, None], B.sum(1)[None]
-    qa, qb = (A ** 2).sum(1)[:, None], (B ** 2).sum(1)[None]
-    ssw = np.maximum((qa + qb - 2 * A @ B.T) / 2, 0)
-    sst = ssw if p == 1 else qa + qb - (sa + sb) ** 2 / (2 * p)  # with one feature SST equals SSW
-    with np.errstate(divide='ignore', invalid='ignore'):
-        S = np.where(sst >= 1e-9, 1 - ssw / sst, (ssw < 1e-9).astype(float))
-    return np.clip(S, 0, None)
-
-
 def reconstruction_scores(X, E, max_dims=10, block=500):
     """Pearson r between the upper triangles of eta2(X) and eta2(E[:, :d]) for d = 1..max_dims, in row blocks."""
     n = len(X)
@@ -54,9 +43,9 @@ def reconstruction_scores(X, E, max_dims=10, block=500):
     for a in range(0, n, block):
         b = min(n, a + block)
         upper = np.arange(n)[None] > np.arange(a, b)[:, None]
-        x = eta2(X[a:b], X)[upper]
+        x = c.eta2(X[a:b], X)[upper]
         for d in range(max_dims):
-            y = eta2(E[a:b, :d + 1], E[:, :d + 1])[upper]
+            y = c.eta2(E[a:b, :d + 1], E[:, :d + 1])[upper]
             sums[d] += [x.size, x.sum(), y.sum(), x @ x, y @ y, x @ y]
     N, sx, sy, sxx, syy, sxy = sums.T
     return (sxy - sx * sy / N) / np.sqrt((sxx - sx ** 2 / N) * (syy - sy ** 2 / N))
@@ -66,7 +55,7 @@ def knn_edges(X, k=5, block=500):
     """k-nearest-neighbour edges on eta2 similarity (union of both directions, as in script 6)."""
     edges = set()
     for a in range(0, len(X), block):
-        S = eta2(X[a:a + block], X)
+        S = c.eta2(X[a:a + block], X)
         S[np.arange(len(S)), np.arange(a, a + len(S))] = -1
         for i, row in enumerate(np.argsort(S, axis=1)[:, -k:], start=a):
             edges.update((min(i, j), max(i, j)) for j in row)
@@ -78,7 +67,7 @@ def best_match(X, groups, block=500):
     names = list(dict.fromkeys(groups))
     best = np.zeros((len(X), len(names)))
     for a in range(0, len(X), block):
-        S = eta2(X[a:a + block], X)
+        S = c.eta2(X[a:a + block], X)
         S[np.arange(len(S)), np.arange(a, a + len(S))] = -1
         for j, g in enumerate(names):
             best[a:a + len(S), j] = S[:, groups == g].max(1)
@@ -96,7 +85,7 @@ def permutation_test(a, b, stat=np.mean, n_perm=10000, seed=0):
     for i in range(n_perm):
         x = rng.permutation(pooled)
         null[i] = stat(x[:n]) - stat(x[n:])
-    return observed, np.mean(np.abs(null) >= np.abs(observed))
+    return observed, np.mean(np.abs(null) >= np.abs(observed)), null
 
 
 def cohen_d(a, b):
@@ -178,10 +167,11 @@ def main(root, out, n_surrogates):
     parcels = {n: {(sp, h): KMeans(n_clusters=n, n_init=10, random_state=0)
                    .fit_predict(c.surface(root, sp, h)[0][c.mask_indices(root, sp, h)])
                    for sp in c.SPECIES for h in c.HEMIS} for n in (50, 100)}
-    rows = []
+    rows, nulls = [], []
     for name, kind, k1, k2, g in the_13_tests():
         a, b = (ss[k1][:, g], ss[k2][:, g]) if kind == 'single' else (seg[k1][:, g], seg[k2][:, g])
-        diff, p = permutation_test(a, b)
+        diff, p, null = permutation_test(a, b)
+        nulls.append(null)
         row = dict(test=name, n1=len(a), n2=len(b), difference=diff, p=p, cohen_d=cohen_d(a, b))
         maps = ss if kind == 'single' else vertex
         for n in (50, 100):
@@ -191,13 +181,14 @@ def main(root, out, n_surrogates):
         print(f"{name:45s} diff={diff:+.5f} p={p:.4f} d={row['cohen_d']:+.2f} "
               f"p50={row['p_50_parcels']:.4f} p100={row['p_100_parcels']:.4f}", flush=True)
     pd.DataFrame(rows).to_csv(f'{out}/tests.csv', index=False)
+    np.savez(f'{out}/permutation_nulls.npz', test=[t[0] for t in the_13_tests()], null=np.array(nulls))
 
     # 3. Spread of cross-species G1, and the share of profile variance the k-means centroids keep
     sd = lambda x: x.std(ddof=1)
     rows = []
     for h in c.HEMIS:
         a, b = seg[('human', h)][:, 0], seg[('chimpanzee', h)][:, 0]
-        diff, p = permutation_test(a, b, stat=sd)
+        p = permutation_test(a, b, stat=sd)[1]
         rows.append(dict(hemisphere=h, sd_human=sd(a), sd_chimpanzee=sd(b), ratio=sd(a) / sd(b), p=p))
     pd.DataFrame(rows).to_csv(f'{out}/g1_spread.csv', index=False)
     summary['kmeans_variance_kept'] = {}
