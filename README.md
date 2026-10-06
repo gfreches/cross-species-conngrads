@@ -11,17 +11,13 @@ You can also find an online version of the 2-D interactive plot of this work in 
     * [Script 1: Average Blueprints](#script-1-average-blueprints)
     * [Script 2: Mask Blueprints](#script-2-mask-blueprints)
     * [Script 3: Compute Individual Species Gradients](#script-3-compute-individual-species-gradients)
-    * [Script 4: Visualize Individual/Combined Gradients (Static Plots)](#script-4-visualize-individual-combined-gradients-static-plots)
-    * [Script 5: Downsample Blueprints via K-Means](#script-5-downsample-blueprints-via-k-means)
-    * [Script 6: Compute Cross-Species Gradients](#script-6-compute-cross-species-gradients)
-    * [Script 7: Interactive Gradient Visualization (Dash App)](#script-7-interactive-gradient-visualization-dash-app)
-    * [Script 8: Plot Cross-Species Gradients (Static Scatter Plots)](#script-8-plot-cross-species-gradients-static-scatter-plots)
-    * [Script 9: Run Permutation Analysis](#script-9-run-permutation-analysis)
-    * [Script 10: Supplementary Statistics](#script-10-supplementary-statistics)
-    * [Script 11: Figures](#script-11-figures)
-
-5.  [Self-Hosted Deployment](#self-hosted-deployment)
-6.  [Outputs](#outputs)
+    * [Script 4: Downsample Blueprints via K-Means](#script-4-downsample-blueprints-via-k-means)
+    * [Script 5: Compute Cross-Species Gradients](#script-5-compute-cross-species-gradients)
+    * [Script 6: Supplementary Statistics](#script-6-supplementary-statistics)
+    * [Script 7: Figures](#script-7-figures)
+5.  [Reproducing the Paper](#reproducing-the-paper)
+6.  [Interactive App and Self-Hosted Deployment](#interactive-app-and-self-hosted-deployment)
+7.  [Outputs](#outputs)
 
 ## Prerequisites
 
@@ -73,32 +69,25 @@ your_project_root/
 │   │   └── <species_name>/         # Output of Script 2
 │   ├── 3_individual_species_gradients/
 │   │   └── <species_name>/         # Output of Script 3
-│   ├── 4_static_gradient_plots/
-│   │   └── <species_name>/         # Output of Script 4
-│   ├── 5_downsampled_blueprints/
-│   │   └── <species_name>/         # Output of Script 5 (centroids, labels, etc.)
-│   ├── 6_cross_species_gradients/
+│   ├── 4_downsampled_blueprints/
+│   │   └── <species_name>/         # Output of Script 4 (centroids, labels, etc.)
+│   ├── 5_cross_species_gradients/
 │   │   ├── intermediates/          # .npy, .npz, plots from cross-species run
 │   │   │   └── <run_identifier>/
 │   │   └── <species_name>/         # Remapped cross-species gradients per species
 │   │       └── cross_species_gradients_remapped/
-│   ├── 8_static_cross_species_plots/ # Output of Script 8
-│   ├── 9_permutation_analysis/      # Output of Script 9
-│   ├── 10_supplementary_statistics/ # Output of Script 10 (CSV and JSON tables)
-│   └── 11_figures/                  # Output of Script 11 (main/ and supplementary/, PNG and PDF)
+│   ├── 6_supplementary_statistics/  # Output of Script 6 (CSV, NPZ and JSON tables)
+│   └── 7_figures/                   # Output of Script 7 (main/ and supplementary/, PNG and PDF)
 └── code/                        # Where your Python scripts reside
     ├── 1_average_blueprints.py
     ├── 2_mask_blueprints.py
     ├── 3_individual_species_gradients.py
-    ├── 4_individual_species_gradients_analysis.py
-    ├── 5_downsample_blueprints_knn.py
-    ├── 6_create_cross_species_gradients.py
-    ├── 7_interactive_plot_cross_species.py
-    ├── 8_plot_cross_species_gradients.py
-    ├── 9_run_permutation_analysis.py
-    ├── 10_supplementary_statistics.py
-    ├── 11_figures.py
-    └── common.py                   # Loaders shared by scripts 10 and 11
+    ├── 4_downsample_blueprints_knn.py
+    ├── 5_create_cross_species_gradients.py
+    ├── 6_supplementary_statistics.py
+    ├── 7_figures.py
+    ├── common.py                   # Loaders shared by scripts 6 and 7
+    └── self_hosted_app.py          # Interactive Dash app (local or self-hosted)
 
 ```
 
@@ -185,39 +174,12 @@ This pipeline processes connectivity blueprints through several stages:
     * `--default_k_knn`: **(Optional)** Fallback *k* value. (Default: 20)
     * `--min_gain_dim_select`: **(Optional)** Minimum gain in score to select an additional gradient. (Default: 0.1)
  
-### Script 4: Visualize Individual/Combined Gradients (Static Plots)
-* **Name**: `4_individual_species_gradients_analysis.py`
-* **Function**: Generates static 2D or 3D scatter plots of vertices in gradient space, using outputs from Script 3. It automatically finds the required files based on the standard project structure.
-* **Example Usage**:
-
-    **Plot combined gradients (G1 vs G2) for multiple species:**
-    ```bash
-    python code/4_individual_species_gradients_analysis.py --species_list "human,chimpanzee" --gradients_to_plot "1,2"
-    ```
-
-    **Plot individual hemisphere gradients for one species:**
-    ```bash
-    python code/4_individual_species_gradients_analysis.py --species_list "human" --plot_type "individual" --gradients_to_plot "1,2"
-    ```
-
-    **Generate a 3D plot (G1 vs G2 vs G3) and all its 2D projections:**
-    ```bash
-    python code/4_individual_species_gradients_analysis.py --species_list "human" --gradients_to_plot "1,2,3" --plot_2d_projections
-    ```
-
-* **Key Arguments**:
-    * `--species_list`: **(Required)** A comma-separated list of species to process.
-    * `--project_root`: **(Optional)** Path to the project's root directory. (Default: ".")
-    * `--plot_type`: **(Optional)** Type of plot to generate. Choices: `combined`, `individual`. (Default: "combined")
-    * `--gradients_to_plot`: **(Optional)** Comma-separated 1-indexed gradient numbers to plot (e.g., "1,2" or "1,2,3"). (Default: "1,2,3")
-    * `--plot_2d_projections`: **(Optional)** If plotting 3 gradients, also generate 2D projection scatter plots. (Default: False)
-
-### Script 5: Downsample Blueprints via K-Means
-* **Name**: `5_downsample_blueprints_knn.py`
+### Script 4: Downsample Blueprints via K-Means
+* **Name**: `4_downsample_blueprints_knn.py`
 * **Function**: Downsamples masked average blueprints (from Script 2) for specified source species using k-means clustering. The number of clusters (`k`) is determined by the temporal lobe vertex count of a specified `target_k_species`. Outputs include centroid profiles (`.npy`), vertex labels (`.npy`), and a visual downsampled blueprint (`.func.gii`).
 * **Example Command**:
     ```bash
-    python code/5_downsample_blueprints_knn.py \
+    python code/4_downsample_blueprints_knn.py \
         --source_species_list "human" \
         --target_species_for_k "chimpanzee"
     ```
@@ -228,12 +190,12 @@ This pipeline processes connectivity blueprints through several stages:
     * `--hemispheres`: **(Optional)** Comma-separated list of hemispheres to process. (Default: "L,R")
     * `--n_tracts_expected`: **(Optional)** Expected number of features/tracts in the blueprint data. (Default: 20)
 
-### Script 6: Compute Cross-Species Gradients
-* **Name**: `6_create_cross_species_gradients.py`
-* **Function**: Performs a joint spectral embedding using a combination of data: original masked blueprints for the `target_k_species` (e.g., chimpanzee, from Script 2) and downsampled centroid profiles for other species (e.g., human, from Script 5). Outputs remapped cross-species gradients as `.func.gii` for each species and an `.npz` archive with detailed embedding information.
+### Script 5: Compute Cross-Species Gradients
+* **Name**: `5_create_cross_species_gradients.py`
+* **Function**: Performs a joint spectral embedding using a combination of data: original masked blueprints for the `target_k_species` (e.g., chimpanzee, from Script 2) and downsampled centroid profiles for other species (e.g., human, from Script 4). Outputs remapped cross-species gradients as `.func.gii` for each species and an `.npz` archive with detailed embedding information.
 * **Example Command**:
     ```bash
-    python code/6_create_cross_species_gradients.py \
+    python code/5_create_cross_species_gradients.py \
         --species_list_for_lle "human,chimpanzee" \
         --target_k_species "chimpanzee"
     ```
@@ -248,98 +210,11 @@ This pipeline processes connectivity blueprints through several stages:
     * `--default_k_knn`: **(Optional)** Fallback *k* value. (Default: 30)
     * `--min_gain_dim_select`: **(Optional)** Minimum gain in score to select an additional gradient. (Default: 0.1)
 
-### Script 7: Interactive Gradient Visualization (Dash App)
-* **Name**: `7_interactive_plot_cross_species.py`
-* **Function**: Launches a tabbed interactive Dash web application for visualizing brain connectivity gradients across species. The app combines 3D brain-surface rendering with scatter-plot exploration in three tabs:
-
-    1.  **Individual Gradients (Tab 1)**: View per-species combined-hemisphere gradients painted on 3D brain surfaces (left and right hemispheres side-by-side). Select species, gradient number, and colorscale. Uses output from **Script 3**.
-    2.  **Cross-Species Gradients (Tab 2)**: View joint cross-species gradients rendered simultaneously on every species/hemisphere surface. A shared color range is applied across all surfaces for direct comparison. Select gradient number and colorscale. Uses output from **Script 6**.
-    3.  **Interactive Explorer (Tab 3)**: Scatter-plot exploration of gradient space with marginal histograms. A data-source selector switches between chimpanzee-only, human-only, and cross-species data. Select which gradients map to the X and Y axes. Click on any data point (vertex) to see its connectivity profile on a spider plot, the selected gradient rendered on its brain surface with the vertex highlighted, and the closest neighbour in another species (or same species). Choose which gradient to display on the surfaces and the colorscale. Supports Euclidean, X-axis only, and Y-axis only distance modes. Uses output from **Scripts 2, 3 & 6**.
-
-    Surface rendering in Tabs 1 and 2 paints gradient values only on temporal-lobe (TL) vertices; the rest of the brain is shown in grey. The TL and non-TL regions are rendered as independent meshes with GPU-accelerated colorscale interpolation.
-
-* **Required Data**:
-    * Surface meshes from `data/surfaces/<species>/` (`.surf.gii`)
-    * Temporal-lobe masks from `data/masks/<species>/` (`.func.gii`)
-    * Individual gradients from `results/3_individual_species_gradients/` (Script 3, for Tab 1)
-    * Cross-species `.npz` from `results/6_cross_species_gradients/` (Script 6, for Tabs 2 & 3)
-    * Masked average blueprints from `results/2_masked_average_blueprints/` (Script 2, for Tab 3 spider plots)
-* **Example Command**:
-    ```bash
-    python code/7_interactive_plot_cross_species.py \
-        --species_list_for_run "human,chimpanzee" \
-        --target_k_species_for_run "chimpanzee" \
-        --port 8051
-    ```
-* **Key Arguments**:
-    * `--species_list_for_run`: **(Required)** Comma-separated list of species included in the Script 6 run. **Must be in the same order as the original run.**
-    * `--target_k_species_for_run`: **(Required)** The reference species (`target_k_species`) used in the Script 6 run.
-    * `--project_root`: **(Optional)** Path to the project's root directory. (Default: ".")
-    * `--surface_dir`: **(Optional)** Directory with species subfolders containing `.surf.gii` files. (Default: `<project_root>/data/surfaces`)
-    * `--n_tracts`: **(Optional)** Expected number of tracts/features. (Default: 20)
-    * `--tract_names`: **(Optional)** Comma-separated list of tract names for spider plots. (Default: "AC,AF,AR,CBD,CBP,CBT,CST,FA,FMI,FMA,FX,IFOF,ILF,MDLF,OR,SLF I,SLF II,SLF III,UF,VOF")
-    * `--host`: **(Optional)** Host address for the Dash app. (Default: "127.0.0.1")
-    * `--port`: **(Optional)** Port for the Dash app. (Default: 8050)
-    * `--debug`: **(Optional)** Enable Dash debug mode. (Default: False)
-* **Accessing the App**: After running, open your web browser and go to `http://<host>:<port>/` (e.g., `http://127.0.0.1:8051/`).
-
-### Script 8: Plot Cross-Species Gradients (Static Scatter Plots)
-* **Name**: `8_plot_cross_species_gradients.py`
-* **Function**: Generates static 2D scatter plots from the cross-species gradient data (`.npz` file) created by Script 6. It automatically finds the correct `.npz` file based on the species used in the Script 6 run. This is useful for creating publication-quality figures of specific gradient comparisons.
-* **Example Command**:
-    ```bash
-    python code/8_plot_cross_species_gradients.py \
-        --species_list_for_run "human,chimpanzee" \
-        --target_k_species_for_run "chimpanzee" \
-        --gradient_pairs "0_1,0_2"
-    ```
-* **Key Arguments**:
-    * `--species_list_for_run`: **(Required)** Comma-separated list of species included in the Script 6 run. **Must be in the same order as the original run.**
-    * `--target_k_species_for_run`: **(Required)** The reference species (`target_k_species`) used in the Script 6 run.
-    * `--project_root`: **(Optional)** Path to the project's root directory. (Default: ".")
-    * `--gradient_pairs`: **(Optional)** Comma-separated list of 0-indexed gradient pairs to plot (e.g., "0_1,0_2"). (Default: "0_1")
-
-### Script 9: Run Permutation Analysis
-* **Name**: `9_run_permutation_analysis.py`
-* **Function**: Performs permutation testing to compare mean gradient values between groups. It supports two primary modes:
-    1.  **`cross_species`**: Compares gradients between hemispheres (e.g., Human L vs. R) and across species (e.g., Human L vs. Chimp L) using the output from a **Script 6** run.
-    2.  **`individual`**: Compares gradients between the left and right hemispheres for a single species, using the output from a **Script 3** run.
-    The script prints statistical results to the console and can save histograms of the null distributions. It automatically finds the required input data based on the specified analysis type and parameters.
-* **Example Commands**:
-
-    **1. Cross-Species Analysis (comparing Human vs. Chimpanzee from a Script 6 run for the first 3 gradients):**
-    ```bash
-    python code/9_run_permutation_analysis.py \
-        --analysis_type "cross_species" \
-        --species_list_for_run "human,chimpanzee" \
-        --target_k_species_for_run "chimpanzee" \
-        --num_gradients 3
-    ```
-
-    **2. Individual Species Analysis (comparing L vs. R hemisphere for the Human species from a Script 3 run):**
-    ```bash
-    python code/9_run_permutation_analysis.py \
-        --analysis_type "individual" \
-        --species "human" \
-        --num_gradients 3
-    ```
-
-* **Key Arguments**:
-    * `--analysis_type`: **(Required)** The type of analysis to run. Choices: `cross_species`, `individual`.
-    * `--num_gradients`: **(Optional)** The number of top gradients to analyze (e.g., 3 means G1, G2, G3). (Default: 3)
-    * `--species_list_for_run`: **(Required for `cross_species`)** Comma-separated list of species from the Script 6 run (e.g., "human,chimpanzee").
-    * `--target_k_species_for_run`: **(Required for `cross_species`)** The reference species used in the Script 6 run.
-    * `--species`: **(Required for `individual`)** The species to analyze from the Script 3 run (e.g., "human").
-    * `--project_root`: **(Optional)** Path to the project's root directory. (Default: ".")
-    * `--n_permutations`: **(Optional)** The number of permutations to run for the test. (Default: 10000)
-    * `--alpha`: **(Optional)** The significance level for the test. (Default: 0.01)
-    * `--no_histograms`: **(Optional)** A flag to disable saving histogram plots of the null distributions. (Default: False, meaning histograms are generated)
-
-### Script 10: Supplementary Statistics
-* **Name**: `10_supplementary_statistics.py`
-* **Function**: Adds the statistics reported in the paper on top of the outputs of scripts 2, 3 and 6. Nothing is recomputed, so the numbers match the gradients already on disk. It writes to `results/10_supplementary_statistics/`:
+### Script 6: Supplementary Statistics
+* **Name**: `6_supplementary_statistics.py`
+* **Function**: Adds the statistics reported in the paper on top of the outputs of scripts 2, 3 and 5. Nothing is recomputed, so the numbers match the gradients already on disk. Permutations use a fixed random seed, so every p-value is reproducible. It writes to `results/6_supplementary_statistics/`:
     * `reconstruction_scores.csv`: reconstruction score for 1 to 10 gradients (single-species and cross-species), the values behind the dimensionality plots
-    * `tests.csv`: the 13 permutation tests of script 9 with Cohen's d, repeated on the means of 50 and 100 spatially contiguous parcels per hemisphere (k-means on the inflated surface coordinates)
+    * `tests.csv`: the 13 permutation tests (hemispheres within each species, species within each hemisphere) with Cohen's d, repeated on the means of 50 and 100 spatially contiguous parcels per hemisphere (k-means on the inflated surface coordinates)
     * `permutation_nulls.npz`: the null distributions of those 13 tests, used for Figures 4, 7, 11 and 12
     * `g1_spread.csv`: SD of cross-species G1 for human centroids and chimpanzee vertices, with a permutation test
     * `correspondence.csv`: correlations between single-species and cross-species gradients (G1 to G4)
@@ -347,18 +222,18 @@ This pipeline processes connectivity blueprints through several stages:
     * `summary.json`: share of edges in the cross-species kNN graph that link the two species, and the two hemispheres within each species, share of profile variance kept by the k-means centroids, regression of cross-species G2 on human G1 to G3, quadratic fit of cross-species G2 on G1, and a spatial null (BrainSMASH, geodesic distances on the inflated surface) for the correlation between human G3 and cross-species G2
 * **Example Usage**:
     ```bash
-    python code/10_supplementary_statistics.py                    # about 45 minutes, mostly the spatial null
-    python code/10_supplementary_statistics.py --n_surrogates 0   # skip the spatial null
+    python code/6_supplementary_statistics.py                    # about 45 minutes, mostly the spatial null
+    python code/6_supplementary_statistics.py --n_surrogates 0   # skip the spatial null
     ```
 
-### Script 11: Figures
-* **Name**: `11_figures.py`
-* **Function**: Draws every figure of the paper, in one style, from the outputs of scripts 2, 3, 6 and 10 into `results/11_figures/main` and `results/11_figures/supplementary` (PNG at 300 dpi and PDF):
+### Script 7: Figures
+* **Name**: `7_figures.py`
+* **Function**: Draws every figure of the paper, in one style, from the outputs of scripts 2, 3, 5 and 6 into `results/7_figures/main` and `results/7_figures/supplementary` (PNG at 300 dpi and PDF):
     * Figure 1: reconstruction score against the number of gradients
     * Figures 2 and 5: chimpanzee and human gradients on the surfaces, and the profiles in gradient space with the locations of Figures 3 and 6
     * Figures 3 and 6: connectivity profiles at the chimpanzee and human locations
-    * Figures 4, 7, 11 and 12: permutation tests (null distribution and observed difference) from script 10
-    * Figure 8: eta2 between human vertices before and after the k-means step of script 5
+    * Figures 4, 7, 11 and 12: permutation tests (null distribution and observed difference) from script 6
+    * Figure 8: eta2 between human vertices before and after the k-means step of script 4
     * Figure 9: cross-species G1 and G2 on the surfaces, and all profiles in the G1-G2 space
     * Figure 10: profiles at the ends of cross-species G2 (A: human end, B: the chimpanzee vertex closest to it, C: chimpanzee end)
     * Figures S1-S3: human, chimpanzee and cross-species gradients G1 to G10 on the surfaces
@@ -366,16 +241,82 @@ This pipeline processes connectivity blueprints through several stages:
     * Figure S5: spread of the human and chimpanzee values along cross-species G1
 * **Example Usage**:
     ```bash
-    python code/11_figures.py   # run script 10 first
+    python code/7_figures.py   # run script 6 first
     ```
 
-## Self-Hosted Deployment
+## Reproducing the Paper
 
-The interactive Dash application (Script 7) is also available as a hosted web app at:
+The repository contains the temporal lobe masks, the surfaces and the group-average blueprints (outputs of scripts 1 and 2). It also contains the outputs of scripts 3 and 5 that the paper uses: `results/3_individual_species_gradients/<species>/all_gradients_embedding_<species>_Combined.npy` and the cross-species `.npz` in `results/5_cross_species_gradients/intermediates/human_chimpanzee_CrossSpecies_kRef_chimpanzee/`. With these, scripts 6 and 7 reproduce every number, table and figure of the paper exactly:
+
+```bash
+python code/6_supplementary_statistics.py
+python code/7_figures.py
+```
+
+To rerun the whole pipeline from the blueprints:
+
+```bash
+python code/3_individual_species_gradients.py --species_list "human,chimpanzee"
+python code/4_downsample_blueprints_knn.py --source_species_list "human" --target_species_for_k "chimpanzee"
+python code/5_create_cross_species_gradients.py --species_list_for_lle "human,chimpanzee" --target_k_species "chimpanzee"
+python code/6_supplementary_statistics.py
+python code/7_figures.py
+```
+
+Script 3 reproduces the stored gradients exactly. The k-means step of script 4 can split the right human hemisphere slightly differently with other scikit-learn versions, which shifts the cross-species results a little, and script 5 needs more than 6 GB of memory.
+
+| In the paper | Produced by |
+| --- | --- |
+| Figures 1 to 12, Supplementary Figures S1 to S5 | Script 7 (`results/7_figures/`) |
+| Supplementary Table S1 | Script 6 (`tests.csv`) |
+| Reconstruction scores and number of gradients | Script 6 (`reconstruction_scores.csv`) |
+| Permutation tests, Cohen's d, parcel-level tests | Script 6 (`tests.csv`, `permutation_nulls.npz`) |
+| Spread of cross-species G1 | Script 6 (`g1_spread.csv`) |
+| Correlations between single-species and cross-species gradients | Script 6 (`correspondence.csv`) |
+| k-means variance kept, regression and quadratic fits, kNN edge shares, spatial null | Script 6 (`summary.json`) |
+| Best-match similarity between species and hemispheres | Script 6 (`best_match.csv`) |
+| k-means validation (r = 0.9999) | Script 4, and Figure 8 from script 7 |
+
+## Interactive App and Self-Hosted Deployment
+
+`code/self_hosted_app.py` is a Dash app for exploring the gradients. It runs locally and is also deployed at:
 
 > **https://cross-species-gradients.duckdns.org/**
 
-The deployment uses `code/self_hosted_app.py`, a self-contained adaptation of Script 7 designed for WSGI hosting (e.g. Gunicorn + Nginx). It supports the same three tabs (Individual Gradients, Cross-Species Gradients, and Interactive Explorer) with identical functionality but is configured for a flat server directory layout.
+* **Function**: Launches a tabbed interactive Dash web application for visualizing brain connectivity gradients across species. The app combines 3D brain-surface rendering with scatter-plot exploration in three tabs:
+
+    1.  **Individual Gradients (Tab 1)**: View per-species combined-hemisphere gradients painted on 3D brain surfaces (left and right hemispheres side-by-side). Select species, gradient number, and colorscale. Uses output from **Script 3**.
+    2.  **Cross-Species Gradients (Tab 2)**: View joint cross-species gradients rendered simultaneously on every species/hemisphere surface. A shared color range is applied across all surfaces for direct comparison. Select gradient number and colorscale. Uses output from **Script 5**.
+    3.  **Interactive Explorer (Tab 3)**: Scatter-plot exploration of gradient space with marginal histograms. A data-source selector switches between chimpanzee-only, human-only, and cross-species data. Select which gradients map to the X and Y axes. Click on any data point (vertex) to see its connectivity profile on a spider plot, the selected gradient rendered on its brain surface with the vertex highlighted, and the closest neighbour in another species (or same species). Choose which gradient to display on the surfaces and the colorscale. Supports Euclidean, X-axis only, and Y-axis only distance modes. Uses output from **Scripts 2, 3 and 5**.
+
+    Surface rendering in Tabs 1 and 2 paints gradient values only on temporal-lobe (TL) vertices; the rest of the brain is shown in grey. The TL and non-TL regions are rendered as independent meshes with GPU-accelerated colorscale interpolation.
+
+* **Required Data**:
+    * Surface meshes from `data/surfaces/<species>/` (`.surf.gii`)
+    * Temporal-lobe masks from `data/masks/<species>/` (`.func.gii`)
+    * Individual gradients from `results/3_individual_species_gradients/` (Script 3, for Tab 1)
+    * Cross-species `.npz` from `results/5_cross_species_gradients/` (Script 5, for Tabs 2 & 3)
+    * Masked average blueprints from `results/2_masked_average_blueprints/` (Script 2, for Tab 3 spider plots)
+* **Example Command**:
+    ```bash
+    python code/self_hosted_app.py \
+        --species_list_for_run "human,chimpanzee" \
+        --target_k_species_for_run "chimpanzee" \
+        --port 8051
+    ```
+* **Key Arguments**:
+    * `--species_list_for_run`: **(Required)** Comma-separated list of species included in the Script 5 run. **Must be in the same order as the original run.**
+    * `--target_k_species_for_run`: **(Required)** The reference species (`target_k_species`) used in the Script 5 run.
+    * `--project_root`: **(Optional)** Path to the project's root directory. (Default: ".")
+    * `--surface_dir`: **(Optional)** Directory with species subfolders containing `.surf.gii` files. (Default: `<project_root>/data/surfaces`)
+    * `--n_tracts`: **(Optional)** Expected number of tracts/features. (Default: 20)
+    * `--tract_names`: **(Optional)** Comma-separated list of tract names for spider plots. (Default: "AC,AF,AR,CBD,CBP,CBT,CST,FA,FMA,FMI,FX,IFOF,ILF,MDLF,OR,SLF I,SLF II,SLF III,UF,VOF")
+    * `--host`: **(Optional)** Host address for the Dash app. (Default: "127.0.0.1")
+    * `--port`: **(Optional)** Port for the Dash app. (Default: 8050)
+    * `--debug`: **(Optional)** Enable Dash debug mode. (Default: False)
+* **Accessing the App**: After running, open your web browser and go to `http://<host>:<port>/` (e.g., `http://127.0.0.1:8051/`).
+
+For WSGI hosting (e.g. Gunicorn + Nginx), edit the `DEPLOY_*` settings at the top of the script; the server uses the flatter layout below.
 
 ### Self-hosted directory structure
 
@@ -388,8 +329,8 @@ data/
 │   └── chimpanzee/
 ├── gradient_outputs/                      # All gradient files in one flat directory
 │   ├── all_computed_gradients_*_.func.gii # Individual species gradients (Script 3)
-│   ├── *_from_cs_gradients_k_*.func.gii  # Cross-species gradient maps (Script 6)
-│   └── cross_species_embedding_data_*.npz # Cross-species embedding (Script 6)
+│   ├── *_from_cs_gradients_k_*.func.gii  # Cross-species gradient maps (Script 5)
+│   └── cross_species_embedding_data_*.npz # Cross-species embedding (Script 5)
 ├── temporal_lobe_average_blueprints/      # Average blueprints for spider plots
 │   ├── human/
 │   │   ├── average_human_blueprint_L_temporal_lobe.func.gii
@@ -407,15 +348,13 @@ The pipeline generates several types of outputs in the specified `results` subdi
 * **Averaged Blueprints**: `.func.gii` files (Script 1).
 * **Masked Blueprints**: `.func.gii` files, focused on the ROI (Script 2).
 * **Individual Species Gradients**: `.func.gii` gradient maps, `.npy` intermediate files, and dimensionality evaluation plots (Script 3).
-* **Static Gradient Scatter Plots**: `.png` files (Script 4).
-* **Downsampled Blueprint Data**: `.npy` files for centroids and labels, and a visual `.func.gii` (Script 5).
+* **Downsampled Blueprint Data**: `.npy` files for centroids and labels, and a visual `.func.gii` (Script 4).
 * **Cross-Species Gradients**:
     * Remapped `.func.gii` gradient files for each species.
     * An `.npz` archive containing the raw joint embedding, segment information, and eigenvalues.
-    * Intermediate `.npy` files and dimensionality evaluation plots (Script 6).
-* **Interactive Visualization**: A tabbed web application with 3D brain-surface gradient rendering, cross-species comparison views, and scatter-plot exploration with connectivity profiling (Script 7).
-* **Cross-Species Scatter Plots**: Static `.png` files showing relationships between different cross-species gradients (Script 8).
-* **Permutation Analysis**: Console output with statistical results and optional `.png` histograms of null distributions (Script 9).
+    * Intermediate `.npy` files and dimensionality evaluation plots (Script 5).
+* **Statistics**: CSV, NPZ and JSON tables with every statistic reported in the paper (Script 6).
+* **Figures**: every figure of the paper as PNG and PDF (Script 7).
 
 ## Disclaimer
 LLMs such as ChatGPT o3/4o and Gemini 2.5 were used to generate/correct the code in this repository while the authors provided the actual tasks

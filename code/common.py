@@ -1,12 +1,12 @@
-"""Shared loaders for scripts 10 and 11.
+"""Shared loaders for scripts 6 and 7.
 
-Everything is read from the standard project layout produced by scripts 1-6:
+Everything is read from the standard project layout produced by scripts 1-5:
 
     data/masks/<species>/<species>_<H>.func.gii
     data/surfaces/<species>/<inflated surface>
     results/2_masked_average_blueprints/<species>/average_<species>_blueprint.<H>_temporal_lobe_masked.func.gii
     results/3_individual_species_gradients/<species>/all_gradients_embedding_<species>_Combined.npy
-    results/6_cross_species_gradients/intermediates/<run>/cross_species_embedding_data_<run>.npz
+    results/5_cross_species_gradients/intermediates/<run>/cross_species_embedding_data_<run>.npz
 """
 import nibabel as nib
 import numpy as np
@@ -24,7 +24,7 @@ SURFACES = {'human': 'Human32k.{h}.inflated.surf.gii',
 
 
 def mask_indices(root, species, h):
-    """Surface indices of the temporal lobe vertices (ascending, as used by scripts 3-6)."""
+    """Surface indices of the temporal lobe vertices (ascending, as used by scripts 3-5)."""
     m = nib.load(f'{root}/data/masks/{species}/{species}_{h}.func.gii').darrays[0].data
     return np.where(m > 0)[0]
 
@@ -54,14 +54,14 @@ def single_species(root):
 
 
 def cross_species(root, run=CS_RUN):
-    """Cross-species gradients from script 6.
+    """Cross-species gradients from script 5.
 
     Returns
       seg:    {(species, H): rows x 10} as embedded (human rows = k-means centroids, chimpanzee rows = vertices)
       vertex: {(species, H): vertices x 10} on the surface (each human vertex takes its centroid's value)
       labels: {('human', H): centroid label of each human temporal lobe vertex}
     """
-    z = np.load(f'{root}/results/6_cross_species_gradients/intermediates/{run}/cross_species_embedding_data_{run}.npz',
+    z = np.load(f'{root}/results/5_cross_species_gradients/intermediates/{run}/cross_species_embedding_data_{run}.npz',
                 allow_pickle=True)
     G = z['cross_species_gradients']
     seg, vertex, labels = {}, {}, {}
@@ -84,7 +84,7 @@ def centroids(root, labels, h):
 
 
 def eta2(A, B):
-    """eta2 similarity between the rows of A and B (same formula and thresholds as eta2() in scripts 3 and 6)."""
+    """eta2 similarity between the rows of A and B (same formula and thresholds as eta2() in scripts 3 and 5)."""
     p = A.shape[1]
     sa, sb = A.sum(1)[:, None], B.sum(1)[None]
     qa, qb = (A ** 2).sum(1)[:, None], (B ** 2).sum(1)[None]

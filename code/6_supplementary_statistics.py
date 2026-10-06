@@ -1,11 +1,11 @@
 """Supplementary statistics for the human-chimpanzee temporal lobe gradients.
 
-Reads the outputs of scripts 2, 3 and 6 (no gradients are recomputed) and writes, to
-results/10_supplementary_statistics/:
+Reads the outputs of scripts 2, 3 and 5 (no gradients are recomputed) and writes, to
+results/6_supplementary_statistics/:
 
   reconstruction_scores.csv  reconstruction score for 1-10 gradients (single-species and cross-species);
-                             the same computation as the dimensionality plots of scripts 3 and 6
-  tests.csv                  the 13 permutation tests of script 9 with Cohen's d, plus the same tests
+                             the same computation as the dimensionality plots of scripts 3 and 5
+  tests.csv                  the 13 permutation tests (hemispheres within species, species within hemispheres) with Cohen's d, plus the same tests
                              on 50 and 100 spatially contiguous parcels per hemisphere
   permutation_nulls.npz      the vertex-level null distributions of those 13 tests (for Figures 4, 7, 11, 12)
   g1_spread.csv              SD of cross-species G1, human centroids vs chimpanzee vertices (permutation test)
@@ -16,8 +16,8 @@ results/10_supplementary_statistics/:
                              cross-species G2 (BrainSMASH, geodesic distances on the surfaces in data/surfaces)
 
 Usage (from the project root):
-    python code/10_supplementary_statistics.py
-    python code/10_supplementary_statistics.py --n_surrogates 0   # skip the slow spatial null
+    python code/6_supplementary_statistics.py
+    python code/6_supplementary_statistics.py --n_surrogates 0   # skip the slow spatial null
 """
 import argparse
 import json
@@ -52,7 +52,7 @@ def reconstruction_scores(X, E, max_dims=10, block=500):
 
 
 def knn_edges(X, k=5, block=500):
-    """k-nearest-neighbour edges on eta2 similarity (union of both directions, as in script 6)."""
+    """k-nearest-neighbour edges on eta2 similarity (union of both directions, as in script 5)."""
     edges = set()
     for a in range(0, len(X), block):
         S = c.eta2(X[a:a + block], X)
@@ -77,7 +77,7 @@ def best_match(X, groups, block=500):
 # ---------- tests ----------
 
 def permutation_test(a, b, stat=np.mean, n_perm=10000, seed=0):
-    """Two-sided label-shuffling test of stat(a) - stat(b); p = share of |null| >= |observed| (as in script 9)."""
+    """Two-sided label-shuffling test of stat(a) - stat(b); p = share of |null| >= |observed|."""
     rng = np.random.default_rng(seed)
     pooled, n = np.concatenate([a, b]), len(a)
     observed = stat(a) - stat(b)
@@ -94,7 +94,7 @@ def cohen_d(a, b):
 
 
 def the_13_tests():
-    """(name, kind, (species, H) of group 1, (species, H) of group 2, gradient index) as in script 9."""
+    """(name, kind, (species, H) of group 1, (species, H) of group 2, gradient index) for the 13 tests reported in the paper."""
     T = [(f'chimpanzee L vs R, single-species G{g + 1}', 'single', ('chimpanzee', 'L'), ('chimpanzee', 'R'), g) for g in (0, 1)]
     T += [(f'human L vs R, single-species G{g + 1}', 'single', ('human', 'L'), ('human', 'R'), g) for g in (0, 1, 2)]
     for g in (0, 1):
@@ -152,7 +152,7 @@ def main(root, out, n_surrogates):
     pd.DataFrame(rows, columns=['embedding', 'n_gradients', 'reconstruction_r']).to_csv(f'{out}/reconstruction_scores.csv', index=False)
     print('reconstruction scores done', flush=True)
 
-    # How strongly the species are linked in the cross-species kNN graph (k = 5, the value script 6 found), with the
+    # How strongly the species are linked in the cross-species kNN graph (k = 5, the value script 5 found), with the
     # two hemispheres of each species as a reference gap, and how close each profile's best match is in every group
     sp, hemi = (np.repeat([k[i] for k in keys], [len(seg[k]) for k in keys]) for i in (0, 1))
     e = knn_edges(X)
@@ -226,4 +226,4 @@ if __name__ == '__main__':
     parser.add_argument('--project_root', default='.')
     parser.add_argument('--n_surrogates', type=int, default=500, help='BrainSMASH surrogates per hemisphere (0 = skip)')
     args = parser.parse_args()
-    main(args.project_root, os.path.join(args.project_root, 'results', '10_supplementary_statistics'), args.n_surrogates)
+    main(args.project_root, os.path.join(args.project_root, 'results', '6_supplementary_statistics'), args.n_surrogates)
