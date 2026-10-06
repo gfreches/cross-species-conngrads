@@ -191,14 +191,14 @@ def downsample_blueprint_with_kmeans(
         print(f"  Error saving k-means .npy outputs: {e_save_npy}")
 
     # --- 3. Create downsampled representation for similarity comparison plot ---
-    print(f"  Creating downsampled data representation for similarity comparison plot...")
+    print("  Creating downsampled data representation for similarity comparison plot...")
     downsampled_tl_blueprint_data_for_plot = centroid_profiles[cluster_labels, :]
 
     # --- 4. Compare similarity structure (Original vs. Downsampled for plot) ---
-    print(f"  Calculating similarity matrix for original TL data (for plot)...")
+    print("  Calculating similarity matrix for original TL data (for plot)...")
     S_original_processed = eta2(source_tl_blueprint_data) 
 
-    print(f"  Calculating similarity matrix for plot's downsampled TL data...")
+    print("  Calculating similarity matrix for plot's downsampled TL data...")
     S_downsampled_processed_for_plot = eta2(downsampled_tl_blueprint_data_for_plot)
 
     if S_original_processed.shape[0] > 1: 
@@ -301,7 +301,7 @@ if __name__ == "__main__":
 
     input_masked_blueprint_dir = os.path.join(args.project_root, 'results', '2_masked_average_blueprints')
     input_mask_dir = os.path.join(args.project_root, 'data', 'masks')
-    output_dir = os.path.join(args.project_root, 'results', '5_downsampled_blueprints')
+    output_dir = os.path.join(args.project_root, 'results', '4_downsampled_blueprints')
 
     if not os.path.exists(output_dir):
         os.makedirs(output_dir, exist_ok=True)

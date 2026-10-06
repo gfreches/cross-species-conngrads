@@ -1,7 +1,7 @@
 """Figures for the paper on human-chimpanzee temporal lobe connectivity gradients.
 
-Reads the outputs of scripts 2, 3, 6 and 10 and writes PNG (300 dpi) and PDF files to
-results/11_figures/main and results/11_figures/supplementary:
+Reads the outputs of scripts 2, 3, 5 and 6 and writes PNG (300 dpi) and PDF files to
+results/7_figures/main and results/7_figures/supplementary:
 
   main/Figure01_dimensionality          reconstruction score vs number of gradients (chimpanzee, human, cross-species)
   main/Figure02_chimpanzee_gradients    chimpanzee G1 and G2 on the surfaces, and the profiles in G1-G2 space
@@ -10,7 +10,7 @@ results/11_figures/main and results/11_figures/supplementary:
   main/Figure05_human_gradients         human G1-G3 on the surfaces, and the profiles in G1-G2 and G1-G3 space
   main/Figure06_human_profiles          connectivity profiles at the human locations A-E
   main/Figure07_human_tests             permutation tests, human left vs right (G1-G3)
-  main/Figure08_kmeans_check            eta2 between human vertices before and after the k-means step of script 5
+  main/Figure08_kmeans_check            eta2 between human vertices before and after the k-means step of script 4
   main/Figure09_cross_species           cross-species G1 and G2 on the surfaces, and all profiles in G1-G2 space
   main/Figure10_cross_species_profiles  profiles at the ends of cross-species G2 (A-C, chosen by rule, see below)
   main/Figure11_lateralization_tests    permutation tests, left vs right in the cross-species space
@@ -19,8 +19,8 @@ results/11_figures/main and results/11_figures/supplementary:
   supplementary/FigureS4                cross-species G1 against G2-G10
   supplementary/FigureS5                spread of the human and chimpanzee values along cross-species G1
 
-Usage (from the project root, after script 10):
-    python code/11_figures.py
+Usage (from the project root, after script 6):
+    python code/7_figures.py
 """
 import argparse
 import os
@@ -100,7 +100,7 @@ def polar_profile(ax, profiles, colors, labels):
 
 
 def selected_dims(scores, min_gain=0.1):
-    """The dimensionality rule of scripts 3 and 6: stop when the gain drops below min_gain or the score falls."""
+    """The dimensionality rule of scripts 3 and 5: stop when the gain drops below min_gain or the score falls."""
     for d in range(1, len(scores)):
         if scores[d] < scores[d - 1] or scores[d] - scores[d - 1] < min_gain:
             return d
@@ -108,7 +108,7 @@ def selected_dims(scores, min_gain=0.1):
 
 
 def figure01(root, out):
-    rs = pd.read_csv(f'{root}/results/10_supplementary_statistics/reconstruction_scores.csv')
+    rs = pd.read_csv(f'{root}/results/6_supplementary_statistics/reconstruction_scores.csv')
     fig, axes = plt.subplots(1, 3, figsize=(10, 3), sharey=True)
     for ax, (emb, title), s in zip(axes, [('chimpanzee', 'Chimpanzee'), ('human', 'Human'), ('cross-species', 'Cross-species')], 'ABC'):
         y = rs.loc[rs.embedding == emb, 'reconstruction_r'].to_numpy()
@@ -178,9 +178,9 @@ def species_figure(root, out, name, ss, sp, locations, panels):
 
 
 def null_figure(root, out, name, tests, ncols=2):
-    """Figures 4, 7, 11 and 12: null distribution (10,000 label permutations, script 10) and observed difference."""
-    z = np.load(f'{root}/results/10_supplementary_statistics/permutation_nulls.npz')
-    T = pd.read_csv(f'{root}/results/10_supplementary_statistics/tests.csv').set_index('test')
+    """Figures 4, 7, 11 and 12: null distribution (10,000 label permutations, script 6) and observed difference."""
+    z = np.load(f'{root}/results/6_supplementary_statistics/permutation_nulls.npz')
+    T = pd.read_csv(f'{root}/results/6_supplementary_statistics/tests.csv').set_index('test')
     nrows = -(-len(tests) // ncols)
     fig, axes = plt.subplots(nrows, ncols, figsize=(3.6 * ncols, 2.5 * nrows + 0.3), squeeze=False)
     for ax, s, (test, title) in zip(axes.flat, 'ABCDE', tests):
@@ -300,7 +300,7 @@ def figure_s4(out, seg):
 
 
 def figure_s5(root, out, seg):
-    st = pd.read_csv(f'{root}/results/10_supplementary_statistics/g1_spread.csv').set_index('hemisphere')
+    st = pd.read_csv(f'{root}/results/6_supplementary_statistics/g1_spread.csv').set_index('hemisphere')
     fig, axes = plt.subplots(1, 2, figsize=(8, 2.8), sharey=True)
     bins = np.linspace(-6, 9, 46)
     for ax, h in zip(axes, c.HEMIS):
@@ -351,7 +351,7 @@ def main(root, out):
     null_figure(root, out, 'Figure11_lateralization_tests',
                 [lr(sp, g, 'cross-species') for g in (1, 2) for sp in ('human', 'chimpanzee')])
     null_figure(root, out, 'Figure12_species_tests', [hc(h, g) for g in (1, 2) for h in c.HEMIS])
-    rs = pd.read_csv(f'{root}/results/10_supplementary_statistics/reconstruction_scores.csv')
+    rs = pd.read_csv(f'{root}/results/6_supplementary_statistics/reconstruction_scores.csv')
     kept = {e: selected_dims(rs.loc[rs.embedding == e, 'reconstruction_r'].to_numpy()) for e in rs.embedding.unique()}
     gradient_grid(root, out, 'FigureS1_human_gradients_G1-G10', ss, [('human', 'L'), ('human', 'R')], kept['human'])
     gradient_grid(root, out, 'FigureS2_chimpanzee_gradients_G1-G10', ss, [('chimpanzee', 'L'), ('chimpanzee', 'R')], kept['chimpanzee'])
@@ -364,4 +364,4 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument('--project_root', default='.')
     args = parser.parse_args()
-    main(args.project_root, os.path.join(args.project_root, 'results', '11_figures'))
+    main(args.project_root, os.path.join(args.project_root, 'results', '7_figures'))

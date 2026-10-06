@@ -672,9 +672,9 @@ if __name__ == "__main__":
 
     # Construct paths
     args_for_run.target_species_bp_dir = os.path.join(parsed_args.project_root, 'results', '2_masked_average_blueprints')
-    args_for_run.other_species_downsampled_dir = os.path.join(parsed_args.project_root, 'results', '5_downsampled_blueprints')
+    args_for_run.other_species_downsampled_dir = os.path.join(parsed_args.project_root, 'results', '4_downsampled_blueprints')
     args_for_run.mask_dir = os.path.join(parsed_args.project_root, 'data', 'masks')
-    args_for_run.output_dir = os.path.join(parsed_args.project_root, 'results', '6_cross_species_gradients')
+    args_for_run.output_dir = os.path.join(parsed_args.project_root, 'results', '5_cross_species_gradients')
 
     # Define fixed filename patterns
     args_for_run.target_species_bp_pattern = "average_{species_name}_blueprint.{hemisphere}_temporal_lobe_masked.func.gii"

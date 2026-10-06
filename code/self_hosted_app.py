@@ -3,8 +3,7 @@
 Self-hosted Dash application for cross-species connectivity gradient
 visualization.
 
-Adapted from script 7 (7_interactive_plot_cross_species.py) for self-hosted
-WSGI deployment (e.g. Gunicorn + Nginx).  Provides three interactive tabs:
+Runs locally or under self-hosted WSGI deployment (e.g. Gunicorn + Nginx).  Provides three interactive tabs:
 
   Tab 1 - Individual Gradients:
       View per-species combined-hemisphere gradients painted on brain surfaces
@@ -47,17 +46,7 @@ import dash
 from dash import dcc, html, Input, Output, State, callback_context
 import plotly.graph_objects as go
 
-try:
-    from plotly.subplots import make_subplots
-except Exception as _e:
-    def make_subplots(*args, **kwargs):
-        fig = go.Figure()
-        fig.update_layout(
-            title_text="plotly.subplots.make_subplots unavailable in this environment",
-            height=600,
-        )
-        print("WARNING: plotly.subplots.make_subplots import failed:", repr(_e))
-        return fig
+from plotly.subplots import make_subplots
 
 from flask import Flask
 from sklearn.metrics.pairwise import euclidean_distances
@@ -222,9 +211,6 @@ def load_individual_gradients():
       - Nested: {dir}/{species}/all_computed_gradients_*_COMBINED_*.func.gii
       - Flat:   {dir}/all_computed_gradients_*_COMBINED_*.func.gii
     """
-    global INDIVIDUAL_GRADIENTS, INDIVIDUAL_GRADIENT_INFO
-    global INDIVIDUAL_GRADIENT_MAPS, N_INDIVIDUAL_GRADS_BY_SPECIES
-
     if not os.path.exists(INDIVIDUAL_GRAD_DIR_GLOBAL):
         print("Individual gradient directory not found - Tab 1 will be empty.")
         return
@@ -292,7 +278,6 @@ def load_individual_gradients():
 
 def _build_per_species_explorer_data():
     """Build DataFrames for per-species explorer from individual gradient maps."""
-    global df_by_source, grad_cols_by_source
 
     for species, n_grads in N_INDIVIDUAL_GRADS_BY_SPECIES.items():
         records = []
@@ -325,7 +310,7 @@ def _build_per_species_explorer_data():
 
 def load_cross_species_from_npz(npz_file_path):
     """
-    Load cross-species data from the .npz produced by script 6.
+    Load cross-species data from the .npz produced by script 5.
 
     Supports both the newer segment key (segment_info_detailed_for_remapping)
     and the older key (full_segment_info_for_remapping) for backwards
@@ -335,7 +320,7 @@ def load_cross_species_from_npz(npz_file_path):
       - CROSS_SPECIES_GRADIENT_MAPS  (Tab 2)
       - df_global / AVAILABLE_EXPLORER_GRADIENTS  (Tab 3)
     """
-    global df_global, CROSS_SPECIES_GRADIENT_MAPS, N_CROSS_SPECIES_GRADIENTS
+    global df_global, N_CROSS_SPECIES_GRADIENTS
     global CROSS_SPECIES_SPECIES_LIST, AVAILABLE_EXPLORER_GRADIENTS
 
     if not os.path.exists(npz_file_path):
@@ -466,8 +451,7 @@ def load_cross_species_gradient_giftis(species_list, target_k_species):
     Looks in CROSS_SPECIES_GRAD_DIR_GLOBAL for files matching:
       {species}_{hem}_from_cs_gradients_k_{target_k_species}.func.gii
     """
-    global CROSS_SPECIES_GRADIENT_MAPS, N_CROSS_SPECIES_GRADIENTS
-    global CROSS_SPECIES_SPECIES_LIST
+    global N_CROSS_SPECIES_GRADIENTS, CROSS_SPECIES_SPECIES_LIST
 
     if not os.path.isdir(CROSS_SPECIES_GRAD_DIR_GLOBAL):
         return False
@@ -893,7 +877,7 @@ def create_tab2_layout():
     """Tab 2 - Cross-species gradients on all surfaces."""
     if N_CROSS_SPECIES_GRADIENTS == 0:
         return _no_data_message(
-            "No cross-species gradient data found. Run Scripts 5 & 6 first."
+            "No cross-species gradient data found. Run scripts 4 and 5 first."
         )
 
     return html.Div([
@@ -955,7 +939,7 @@ def create_tab3_layout():
     has_any_data = bool(df_by_source)
     if not has_any_data:
         return _no_data_message(
-            "No gradient data found. Run Scripts 3, 5 & 6 to generate data."
+            "No gradient data found. Run scripts 3, 4 and 5 to generate data."
         )
 
     data_source_options = _build_data_source_options()
@@ -1498,7 +1482,7 @@ def configure_and_load(
         )
         npz_filename = f"cross_species_embedding_data_{run_id}.npz"
         npz_file_path = os.path.join(
-            project_root, "results", "6_cross_species_gradients",
+            project_root, "results", "5_cross_species_gradients",
             "intermediates", run_id, npz_filename,
         )
 
@@ -1572,11 +1556,11 @@ if __name__ == "__main__":
     )
     parser.add_argument(
         "--species_list_for_run", type=str, required=True,
-        help='Comma-separated species in the Script 6 run (e.g. "human,chimpanzee").',
+        help='Comma-separated species in the script 5 run (e.g. "human,chimpanzee").',
     )
     parser.add_argument(
         "--target_k_species_for_run", type=str, required=True,
-        help="Reference species used in Script 6.",
+        help="Reference species used in script 5.",
     )
     parser.add_argument(
         "--project_root", type=str, default=".",
