@@ -9,6 +9,10 @@ results/6_supplementary_statistics/:
                              on 50 and 100 spatially contiguous parcels per hemisphere
   permutation_nulls.npz      the vertex-level null distributions of those 13 tests (for Figures 4, 7, 11, 12)
   g1_spread.csv              SD of cross-species G1, human centroids vs chimpanzee vertices (permutation test)
+  g1_composition.csv         what lies behind the narrower human range on cross-species G1: interquartile range ratio,
+                             SD ratio without mask-boundary vertices, profile entropy, and eta2 between the mean profiles
+                             of the two ends of G1 (with all 20 tracts and without the AF)
+  g1_tract_share.csv         mean share of each tract in each fifth of cross-species G1, per species and hemisphere
   correspondence.csv         Pearson r between single-species and cross-species gradients (G1-G4)
   best_match.csv             median eta2 of each profile's best match in each species and hemisphere (rows = source)
   summary.json               share of kNN graph edges between species and between hemispheres, k-means variance kept, regression of cross-species G2 on human G1-G3,
@@ -133,6 +137,63 @@ def spatial_null_correlation(x, y, D, n_surrogates, seed=1):
     return dict(r=r, p=(1 + np.sum(np.abs(null) >= abs(r))) / (n_surrogates + 1), n_surrogates=n_surrogates)
 
 
+# ---------- composition of the profiles along cross-species G1 ----------
+
+def entropy(P):
+    """Shannon entropy of each profile across the tracts, divided by its maximum (log of the number of tracts)."""
+    logs = np.log(P, where=P > 0, out=np.zeros_like(P))
+    return -(P * logs).sum(1) / np.log(P.shape[1])
+
+
+def interior(root, species, h):
+    """True for temporal lobe vertices that share no surface triangle with a vertex outside the mask."""
+    idx = c.mask_indices(root, species, h)
+    faces = c.surface(root, species, h)[1]
+    in_mask = np.zeros(faces.max() + 1, bool)
+    in_mask[idx] = True
+    on_edge = np.zeros_like(in_mask)
+    on_edge[faces[in_mask[faces].any(1) & ~in_mask[faces].all(1)].ravel()] = True
+    return ~on_edge[idx]
+
+
+def g1_composition(root, seg, vertex, labels):
+    """Compare the spread and the tract composition of human and chimpanzee profiles along cross-species G1.
+
+    G1 is oriented so that its dorsal end (high acoustic radiation share in the chimpanzee) is positive. Human
+    centroids and chimpanzee vertices are used wherever G1 values are needed, as in g1_spread.csv; the entropy
+    uses the vertex profiles of both species, so it does not depend on the k-means step.
+    """
+    sd = lambda x: x.std(ddof=1)
+    iqr = lambda x: np.subtract(*np.percentile(x, [75, 25]))
+    af = c.TRACTS.index('AF')
+    no_af = [i for i in range(len(c.TRACTS)) if i != af]
+    rows, shares = [], []
+    for h in c.HEMIS:
+        P = {'human': c.centroids(root, labels, h), 'chimpanzee': c.profiles(root, 'chimpanzee', h)}
+        g = {sp: seg[(sp, h)][:, 0] for sp in c.SPECIES}
+        sign = np.sign(stats.pearsonr(P['chimpanzee'][:, c.TRACTS.index('AR')], g['chimpanzee'])[0])
+        g = {sp: sign * g[sp] for sp in c.SPECIES}
+        gv = {sp: sign * vertex[(sp, h)][:, 0] for sp in c.SPECIES}
+        keep = {sp: interior(root, sp, h) for sp in c.SPECIES}
+        row = dict(hemisphere=h,
+                   iqr_ratio=iqr(g['human']) / iqr(g['chimpanzee']),
+                   sd_ratio_interior_vertices=sd(gv['human'][keep['human']]) / sd(gv['chimpanzee'][keep['chimpanzee']]),
+                   interior_vertices_human=int(keep['human'].sum()), interior_vertices_chimpanzee=int(keep['chimpanzee'].sum()))
+        for sp in c.SPECIES:
+            row[f'entropy_{sp}'] = entropy(c.profiles(root, sp, h)).mean()
+            dorsal = P[sp][g[sp] >= np.percentile(g[sp], 90)].mean(0)
+            ventral = P[sp][g[sp] <= np.percentile(g[sp], 10)].mean(0)
+            row[f'ends_eta2_{sp}'] = c.eta2(dorsal[None], ventral[None])[0, 0]
+            d, v = dorsal[no_af] / dorsal[no_af].sum(), ventral[no_af] / ventral[no_af].sum()
+            row[f'ends_eta2_without_AF_{sp}'] = c.eta2(d[None], v[None])[0, 0]
+            fifth = np.digitize(g[sp], np.percentile(g[sp], [20, 40, 60, 80]))
+            for f in range(5):
+                shares += [dict(species=sp, hemisphere=h, g1_fifth=f + 1, tract=t, share=s)
+                           for t, s in zip(c.TRACTS, P[sp][fifth == f].mean(0))]
+        rows.append(row)
+    return pd.DataFrame(rows), pd.DataFrame(shares)
+
+
 def main(root, out, n_surrogates):
     os.makedirs(out, exist_ok=True)
     ss = c.single_species(root)
@@ -183,7 +244,7 @@ def main(root, out, n_surrogates):
     pd.DataFrame(rows).to_csv(f'{out}/tests.csv', index=False)
     np.savez(f'{out}/permutation_nulls.npz', test=[t[0] for t in the_13_tests()], null=np.array(nulls))
 
-    # 3. Spread of cross-species G1, and the share of profile variance the k-means centroids keep
+    # 3. Spread of cross-species G1 (and the profile composition behind it), and the share of profile variance the k-means centroids keep
     sd = lambda x: x.std(ddof=1)
     rows = []
     for h in c.HEMIS:
@@ -195,6 +256,10 @@ def main(root, out, n_surrogates):
     for h in c.HEMIS:
         P, C = c.profiles(root, 'human', h), c.centroids(root, labels, h)[labels[('human', h)]]
         summary['kmeans_variance_kept'][h] = 1 - ((P - C) ** 2).sum() / ((P - P.mean(0)) ** 2).sum()
+    composition, tract_share = g1_composition(root, seg, vertex, labels)
+    composition.to_csv(f'{out}/g1_composition.csv', index=False)
+    tract_share.to_csv(f'{out}/g1_tract_share.csv', index=False)
+    print(composition.T.to_string(), flush=True)
 
     # 4. Correspondence between single-species and cross-species gradients
     rows = [dict(species=sp, hemisphere=h, single=f'G{i + 1}', cross=f'G{j + 1}',
