@@ -217,6 +217,8 @@ This pipeline processes connectivity blueprints through several stages:
     * `tests.csv`: the 13 permutation tests (hemispheres within each species, species within each hemisphere) with Cohen's d, repeated on the means of 50 and 100 spatially contiguous parcels per hemisphere (k-means on the inflated surface coordinates)
     * `permutation_nulls.npz`: the null distributions of those 13 tests, used for Figures 4, 7, 11 and 12
     * `g1_spread.csv`: SD of cross-species G1 for human centroids and chimpanzee vertices, with a permutation test
+    * `g1_composition.csv`: what lies behind the narrower human range on cross-species G1: interquartile range ratio, SD ratio without the vertices on the mask boundary, mean profile entropy, and eta2 between the mean profiles of the top and bottom 10% of G1 (with all tracts and without the AF)
+    * `g1_tract_share.csv`: mean share of each tract in each fifth of cross-species G1, per species and hemisphere
     * `correspondence.csv`: correlations between single-species and cross-species gradients (G1 to G4)
     * `best_match.csv`: median eta2 of each profile's best match in each species and hemisphere (rows are the source group)
     * `summary.json`: share of edges in the cross-species kNN graph that link the two species, and the two hemispheres within each species, share of profile variance kept by the k-means centroids, regression of cross-species G2 on human G1 to G3, quadratic fit of cross-species G2 on G1, and a spatial null (BrainSMASH, geodesic distances on the inflated surface) for the correlation between human G3 and cross-species G2
@@ -272,6 +274,7 @@ Script 3 reproduces the stored gradients exactly. The k-means step of script 4 c
 | Reconstruction scores and number of gradients | Script 6 (`reconstruction_scores.csv`) |
 | Permutation tests, Cohen's d, parcel-level tests | Script 6 (`tests.csv`, `permutation_nulls.npz`) |
 | Spread of cross-species G1 | Script 6 (`g1_spread.csv`) |
+| Profile entropy, similarity of the G1 ends, AF share along G1 | Script 6 (`g1_composition.csv`, `g1_tract_share.csv`) |
 | Correlations between single-species and cross-species gradients | Script 6 (`correspondence.csv`) |
 | k-means variance kept, regression and quadratic fits, kNN edge shares, spatial null | Script 6 (`summary.json`) |
 | Best-match similarity between species and hemispheres | Script 6 (`best_match.csv`) |
