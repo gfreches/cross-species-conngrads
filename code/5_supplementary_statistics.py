@@ -1,10 +1,8 @@
-"""Supplementary statistics for the human-chimpanzee temporal lobe gradients.
+"""Script 5: the statistics reported in the paper.
 
-Reads the outputs of scripts 2, 3 and 5 (no gradients are recomputed) and writes, to
-results/6_supplementary_statistics/:
+Reads the stored outputs of scripts 1-4 (no gradients are recomputed) and writes, to
+results/5_supplementary_statistics/:
 
-  reconstruction_scores.csv  reconstruction score for 1-10 gradients (single-species and cross-species);
-                             the same computation as the dimensionality plots of scripts 3 and 5
   tests.csv                  the 13 permutation tests (hemispheres within species, species within hemispheres) with Cohen's d, plus the same tests
                              on 50 and 100 spatially contiguous parcels per hemisphere
   permutation_nulls.npz      the vertex-level null distributions of those 13 tests (for Figures 4, 7, 11, 12)
@@ -20,8 +18,8 @@ results/6_supplementary_statistics/:
                              cross-species G2 (BrainSMASH, geodesic distances on the surfaces in data/surfaces)
 
 Usage (from the project root):
-    python code/6_supplementary_statistics.py
-    python code/6_supplementary_statistics.py --n_surrogates 0   # skip the slow spatial null
+    python code/5_supplementary_statistics.py
+    python code/5_supplementary_statistics.py --n_surrogates 0   # skip the slow spatial null
 """
 import argparse
 import json
@@ -38,33 +36,7 @@ import common as c
 np.row_stack = np.vstack  # brainsmash still calls np.row_stack, which numpy 2 removed
 
 
-# ---------- reconstruction score (eta2 similarity of profiles vs eta2 of the embedding) ----------
-
-def reconstruction_scores(X, E, max_dims=10, block=500):
-    """Pearson r between the upper triangles of eta2(X) and eta2(E[:, :d]) for d = 1..max_dims, in row blocks."""
-    n = len(X)
-    sums = np.zeros((max_dims, 6))
-    for a in range(0, n, block):
-        b = min(n, a + block)
-        upper = np.arange(n)[None] > np.arange(a, b)[:, None]
-        x = c.eta2(X[a:b], X)[upper]
-        for d in range(max_dims):
-            y = c.eta2(E[a:b, :d + 1], E[:, :d + 1])[upper]
-            sums[d] += [x.size, x.sum(), y.sum(), x @ x, y @ y, x @ y]
-    N, sx, sy, sxx, syy, sxy = sums.T
-    return (sxy - sx * sy / N) / np.sqrt((sxx - sx ** 2 / N) * (syy - sy ** 2 / N))
-
-
-def knn_edges(X, k=5, block=500):
-    """k-nearest-neighbour edges on eta2 similarity (union of both directions, as in script 5)."""
-    edges = set()
-    for a in range(0, len(X), block):
-        S = c.eta2(X[a:a + block], X)
-        S[np.arange(len(S)), np.arange(a, a + len(S))] = -1
-        for i, row in enumerate(np.argsort(S, axis=1)[:, -k:], start=a):
-            edges.update((min(i, j), max(i, j)) for j in row)
-    return np.array(sorted(edges))
-
+# ---------- similarity between groups ----------
 
 def best_match(X, groups, block=500):
     """Median eta2 of each row's best match within every group (self excluded), as a groups x groups table."""
@@ -200,24 +172,16 @@ def main(root, out, n_surrogates):
     seg, vertex, labels = c.cross_species(root)
     summary = {}
 
-    # 1. Reconstruction scores
-    rows = []
-    for sp in c.SPECIES:
-        X = np.vstack([c.profiles(root, sp, h) for h in c.HEMIS])
-        E = np.vstack([ss[(sp, h)] for h in c.HEMIS])
-        rows += [(sp, d + 1, r) for d, r in enumerate(reconstruction_scores(X, E))]
+    # 1. How strongly the species are linked in the cross-species kNN graph (with the k script 4 found), with the two
+    # hemispheres of each species as a reference gap, and how close each profile's best match is in every group
     keys = [('human', 'L'), ('human', 'R'), ('chimpanzee', 'L'), ('chimpanzee', 'R')]
     X = np.vstack([c.centroids(root, labels, h) for h in c.HEMIS] + [c.profiles(root, 'chimpanzee', h) for h in c.HEMIS])
-    E = np.vstack([seg[k] for k in keys])
-    rows += [('cross-species', d + 1, r) for d, r in enumerate(reconstruction_scores(X, E))]
-    pd.DataFrame(rows, columns=['embedding', 'n_gradients', 'reconstruction_r']).to_csv(f'{out}/reconstruction_scores.csv', index=False)
-    print('reconstruction scores done', flush=True)
-
-    # How strongly the species are linked in the cross-species kNN graph (k = 5, the value script 5 found), with the
-    # two hemispheres of each species as a reference gap, and how close each profile's best match is in every group
     sp, hemi = (np.repeat([k[i] for k in keys], [len(seg[k]) for k in keys]) for i in (0, 1))
-    e = knn_edges(X)
-    summary['knn_graph'] = dict(k=5, edges=len(e), share_between_species=np.mean(sp[e[:, 0]] != sp[e[:, 1]]))
+    k = int(np.load(f'{root}/{c.CROSS}')['k'])
+    S = c.similarity(X)
+    e = np.column_stack(sparse.triu(c.knn_graph(S, c.nearest_neighbours(S, k), k), 1).nonzero())
+    del S
+    summary['knn_graph'] = dict(k=k, edges=len(e), share_between_species=np.mean(sp[e[:, 0]] != sp[e[:, 1]]))
     for s in c.SPECIES:
         w = e[(sp[e[:, 0]] == s) & (sp[e[:, 1]] == s)]
         summary['knn_graph'][f'share_between_hemispheres_{s}'] = np.mean(hemi[w[:, 0]] != hemi[w[:, 1]])
@@ -282,13 +246,13 @@ def main(root, out, n_surrogates):
                 ss[('human', h)][:, 2], vertex[('human', h)][:, 1], D, n_surrogates)
             print('spatial null', h, summary['spatial_null_G3_vs_csG2'][h], flush=True)
 
-    json.dump(summary, open(f'{out}/summary.json', 'w'), indent=1, default=float)
+    with open(f'{out}/summary.json', 'w') as f:
+        json.dump(summary, f, indent=1, default=float)
     print(json.dumps(summary, indent=1, default=float))
 
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    parser.add_argument('--project_root', default='.')
     parser.add_argument('--n_surrogates', type=int, default=500, help='BrainSMASH surrogates per hemisphere (0 = skip)')
     args = parser.parse_args()
-    main(args.project_root, os.path.join(args.project_root, 'results', '6_supplementary_statistics'), args.n_surrogates)
+    main(c.ROOT, f'{c.ROOT}/results/5_supplementary_statistics', args.n_surrogates)
