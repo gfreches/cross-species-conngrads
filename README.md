@@ -45,7 +45,7 @@ python code/6_figures.py
 
 | In the paper | Produced by |
 | --- | --- |
-| Figures 1-8, Supplementary Figures S1-S7 | script 6 (`results/6_figures/`) |
+| Figures 1-4, Supplementary Figures S1-S10 | script 6 (`results/6_figures/`) |
 | Number of gradients and reconstruction scores | scripts 2 and 4 (stored in the gradient files), Figure 1 |
 | Supplementary Table S1, permutation tests, Cohen's d, parcel-level tests | script 5 (`tests.csv`, `permutation_nulls.npz`) |
 | Spread of cross-species G1 | script 5 (`g1_spread.csv`) |
@@ -53,7 +53,7 @@ python code/6_figures.py
 | Correlations between single-species and cross-species gradients | script 5 (`correspondence.csv`) |
 | k-means variance kept, regression and quadratic fits, kNN edge shares, spatial null | script 5 (`summary.json`) |
 | Best-match similarity between species and hemispheres | script 5 (`best_match.csv`) |
-| k-means check (r = 0.9999) | script 3, and Figure 4 |
+| k-means check (r = 0.9999) | script 3, and Supplementary Figure S5 |
 
 ## Rerunning the pipeline
 

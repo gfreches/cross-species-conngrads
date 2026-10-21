@@ -1,0 +1,267 @@
+From 24032f5719ac8a9928aebbb91cb41c9fc5659685 Mon Sep 17 00:00:00 2001
+From: gfreches <gfreches@gmail.com>
+Date: Wed, 21 Oct 2026 15:52:40 +0200
+Subject: [PATCH] Merge the cross-species figures and move three figures to the
+ supplement
+
+Following Koen's comments: Figures 5 and 6 become Figure 4 (surfaces,
+gradient space and profiles at locations A-C), and the k-means check and
+the cross-species permutation tests move to Supplementary Figures S5, S9
+and S10. Old S5-S7 become S6-S8. All other figures are pixel-identical.
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_01UL5VBTFPERCuQrZBTpqvNq
+---
+ README.md                          |  4 +-
+ code/3_kmeans_downsampling.py      |  2 +-
+ code/5_supplementary_statistics.py |  2 +-
+ code/6_figures.py                  | 96 ++++++++++++++----------------
+ 4 files changed, 50 insertions(+), 54 deletions(-)
+
+diff --git a/README.md b/README.md
+index 9175467..b4bdab1 100644
+--- a/README.md
++++ b/README.md
+@@ -45,7 +45,7 @@ python code/6_figures.py
+ 
+ | In the paper | Produced by |
+ | --- | --- |
+-| Figures 1-8, Supplementary Figures S1-S7 | script 6 (`results/6_figures/`) |
++| Figures 1-4, Supplementary Figures S1-S10 | script 6 (`results/6_figures/`) |
+ | Number of gradients and reconstruction scores | scripts 2 and 4 (stored in the gradient files), Figure 1 |
+ | Supplementary Table S1, permutation tests, Cohen's d, parcel-level tests | script 5 (`tests.csv`, `permutation_nulls.npz`) |
+ | Spread of cross-species G1 | script 5 (`g1_spread.csv`) |
+@@ -53,7 +53,7 @@ python code/6_figures.py
+ | Correlations between single-species and cross-species gradients | script 5 (`correspondence.csv`) |
+ | k-means variance kept, regression and quadratic fits, kNN edge shares, spatial null | script 5 (`summary.json`) |
+ | Best-match similarity between species and hemispheres | script 5 (`best_match.csv`) |
+-| k-means check (r = 0.9999) | script 3, and Figure 4 |
++| k-means check (r = 0.9999) | script 3, and Supplementary Figure S5 |
+ 
+ ## Rerunning the pipeline
+ 
+diff --git a/code/3_kmeans_downsampling.py b/code/3_kmeans_downsampling.py
+index 994bfc5..fd856ac 100644
+--- a/code/3_kmeans_downsampling.py
++++ b/code/3_kmeans_downsampling.py
+@@ -4,7 +4,7 @@ The human profiles of each hemisphere are clustered into as many clusters as the
+ temporal lobe vertices, so that both species enter the cross-species embedding with the same number of profiles.
+ The centroid of a cluster is the mean profile of its vertices (common.centroids). Writes the cluster of every human
+ temporal lobe vertex to results/3_kmeans_downsampling/human_kmeans_labels.npz and prints how well the centroids
+-keep the similarity between vertices (Figure 4).
++keep the similarity between vertices (Supplementary Figure S5).
+ 
+ The right-hemisphere clustering comes out slightly differently on different computers (rounding in the float32
+ k-means depends on the processor), so rerunning this script can replace the stored labels, which are the ones used
+diff --git a/code/5_supplementary_statistics.py b/code/5_supplementary_statistics.py
+index bc9a8d5..f87da1e 100644
+--- a/code/5_supplementary_statistics.py
++++ b/code/5_supplementary_statistics.py
+@@ -5,7 +5,7 @@ results/5_supplementary_statistics/:
+ 
+   tests.csv                  the 13 permutation tests (hemispheres within species, species within hemispheres) with Cohen's d, plus the same tests
+                              on 50 and 100 spatially contiguous parcels per hemisphere
+-  permutation_nulls.npz      the vertex-level null distributions of those 13 tests (Figures 7 and 8, Supplementary Figures S3 and S4)
++  permutation_nulls.npz      the vertex-level null distributions of those 13 tests (Supplementary Figures S3, S4, S9 and S10)
+   g1_spread.csv              SD of cross-species G1, human centroids vs chimpanzee vertices (permutation test)
+   g1_composition.csv         what lies behind the narrower human range on cross-species G1: interquartile range ratio,
+                              SD ratio without mask-boundary vertices, profile entropy, and eta2 between the mean profiles
+diff --git a/code/6_figures.py b/code/6_figures.py
+index 02b19ee..63323fb 100644
+--- a/code/6_figures.py
++++ b/code/6_figures.py
+@@ -8,16 +8,17 @@ results/6_figures/main and results/6_figures/supplementary:
+                                         connectivity profiles at locations A-D, left and right vertex overlaid (c)
+   main/Figure03_human_gradients         human G1-G3 on the surfaces (a), the profiles in G1-G2 (b) and G1-G3 space (c)
+                                         and the connectivity profiles at locations A-E (d)
+-  main/Figure04_kmeans_check            eta2 between human vertices before and after the k-means step of script 3
+-  main/Figure05_cross_species           cross-species G1 and G2 on the surfaces (a) and all profiles in G1-G2 space (b)
+-  main/Figure06_cross_species_profiles  profiles at the ends of cross-species G2 (locations A-C, chosen by rule, see below)
+-  main/Figure07_lateralization_tests    permutation tests, left vs right in the cross-species space
+-  main/Figure08_species_tests           permutation tests, human vs chimpanzee in the cross-species space
++  main/Figure04_cross_species           cross-species G1 and G2 on the surfaces (a), all profiles in G1-G2 space (b) and
++                                        the connectivity profiles at the ends of cross-species G2 (c; locations A-C,
++                                        chosen by rule, see main)
+   supplementary/FigureS1, S2            single-species gradients G1-G10 (human, chimpanzee)
+   supplementary/FigureS3, S4            permutation tests, left vs right within the chimpanzee (G1, G2) and human (G1-G3)
+-  supplementary/FigureS5                cross-species gradients G1-G10
+-  supplementary/FigureS6                cross-species G1 against G2-G10
+-  supplementary/FigureS7                spread of the human and chimpanzee values along cross-species G1
++  supplementary/FigureS5                eta2 between human vertices before and after the k-means step of script 3
++  supplementary/FigureS6                cross-species gradients G1-G10
++  supplementary/FigureS7                cross-species G1 against G2-G10
++  supplementary/FigureS8                spread of the human and chimpanzee values along cross-species G1
++  supplementary/FigureS9                permutation tests, left vs right in the cross-species space
++  supplementary/FigureS10               permutation tests, human vs chimpanzee in the cross-species space
+ 
+ Panels are labelled a, b, c; capital letters mark locations.
+ 
+@@ -184,8 +185,8 @@ def species_figure(root, out, name, ss, sp, locations, panels):
+ 
+ 
+ def null_figure(root, out, name, tests, ncols=2):
+-    """Figures 7 and 8, Supplementary Figures S3 and S4: null distribution (10,000 label permutations, script 5) and
+-    observed difference. name includes the folder (main/ or supplementary/)."""
++    """Supplementary Figures S3, S4, S9 and S10: null distribution (10,000 label permutations, script 5) and
++    observed difference."""
+     z = np.load(f'{root}/results/5_supplementary_statistics/permutation_nulls.npz')
+     T = pd.read_csv(f'{root}/results/5_supplementary_statistics/tests.csv').set_index('test')
+     nrows = -(-len(tests) // ncols)
+@@ -211,10 +212,10 @@ def null_figure(root, out, name, tests, ncols=2):
+                matplotlib.lines.Line2D([], [], color=INK, lw=1.4, ls='--', label='Observed difference')]
+     fig.tight_layout(rect=(0, 0.06 / nrows, 1, 1))
+     fig.legend(handles=handles, loc='lower center', ncol=2, frameon=False, fontsize=7.5)
+-    save(fig, f'{out}/{name}')
++    save(fig, f'{out}/supplementary/{name}')
+ 
+ 
+-def figure04(root, out, labels):
++def kmeans_figure(root, out, labels):
+     """eta2 between all pairs of human vertices: original profiles vs the profile of each vertex's k-means centroid."""
+     fig, axes = plt.subplots(1, 2, figsize=(8, 3.5), sharey=True)
+     for ax, h, s in zip(axes, c.HEMIS, 'ab'):
+@@ -229,25 +230,29 @@ def figure04(root, out, labels):
+         ax.set_title(f'Human {h}: {len(P):,} vertices, {lab.max() + 1:,} centroids', loc='left', fontsize=9)
+         letter(ax, s)
+     axes[0].set_ylabel('eta$^2$, centroid profiles')
+-    save(fig, f'{out}/main/Figure04_kmeans_check')
++    save(fig, f'{out}/supplementary/FigureS5_kmeans_check')
+ 
+ 
+-def figure05(root, out, seg, vertex, picks):
+-    fig = plt.figure(figsize=(11, 4.6))
+-    fig.text(0.0, 1.02, 'a', fontsize=13, fontweight='bold', color=INK, va='top')
++def cross_species_figure(root, out, seg, vertex, labels, picks):
++    """Figure 4. a: cross-species G1 and G2 on the surfaces, b: all profiles in G1-G2 space, c: the connectivity profiles
++    at locations A-C. A: human centroid with the lowest cross-species G2 (shown at its most typical vertex), B: chimpanzee
++    vertex with the lowest G2 (the one closest to the human end), C: chimpanzee vertex with the highest G2."""
++    fig = plt.figure(figsize=(11, 9.4))
++    top, bottom = fig.subfigures(2, 1, height_ratios=[4.6, 4.8])
++    top.text(0.0, 1.02, 'a', fontsize=13, fontweight='bold', color=INK, va='top')
+     for gi in range(2):
+         vals = np.concatenate([vertex[k][:, gi] for k in KEYS])
+         vmin, vmax = np.percentile(vals, [1, 99])
+         for ki, k in enumerate(KEYS):
+-            ax = fig.add_axes([0.0 + ki * 0.135, 0.52 - gi * 0.47, 0.15, 0.42], projection='3d')
++            ax = top.add_axes([0.0 + ki * 0.135, 0.52 - gi * 0.47, 0.15, 0.42], projection='3d')
+             brain(ax, root, *k, vertex[k][:, gi], vmin, vmax)
+             if gi == 0:
+                 ax.set_title(f'{NAME[k[0]]} {k[1]}', fontsize=8, y=0.92)
+-        fig.text(0.0, 0.93 - gi * 0.47, f'Cross-species G{gi + 1}', fontsize=9, fontweight='bold')
+-    cax = fig.add_axes([0.2, 0.06, 0.15, 0.02])
+-    cb = fig.colorbar(plt.cm.ScalarMappable(cmap=CMAP), cax=cax, orientation='horizontal', ticks=[0, 1])
++        top.text(0.0, 0.93 - gi * 0.47, f'Cross-species G{gi + 1}', fontsize=9, fontweight='bold')
++    cax = top.add_axes([0.2, 0.06, 0.15, 0.02])
++    cb = top.colorbar(plt.cm.ScalarMappable(cmap=CMAP), cax=cax, orientation='horizontal', ticks=[0, 1])
+     cb.set_ticklabels(['min', 'max']); cb.outline.set_visible(False)
+-    ax = fig.add_axes([0.62, 0.1, 0.36, 0.82])
++    ax = top.add_axes([0.62, 0.1, 0.36, 0.82])
+     for k in [('chimpanzee', 'L'), ('chimpanzee', 'R'), ('human', 'L'), ('human', 'R')]:
+         ax.scatter(seg[k][:, 0] * 1e3, seg[k][:, 1] * 1e3, s=3, lw=0, alpha=0.5, color=COLOR[k],
+                    label=f'{NAME[k[0]]} {k[1]}', rasterized=True)
+@@ -259,28 +264,20 @@ def figure05(root, out, seg, vertex, picks):
+     ax.axhline(0, color=GRID, lw=0.8, zorder=0); ax.axvline(0, color=GRID, lw=0.8, zorder=0)
+     ax.legend(frameon=False, markerscale=3, loc='lower left', fontsize=7)
+     letter(ax, 'b', -0.14, 1.02)
+-    save(fig, f'{out}/main/Figure05_cross_species')
+-
+-
+-def figure06(root, out, labels, picks):
+-    """Locations A-C of Figure 5 (panels a-c). A: human centroid with the lowest cross-species G2 (shown at its most typical
+-    vertex), B: chimpanzee vertex with the lowest G2 (the one closest to the human end), C: chimpanzee vertex with the
+-    highest G2."""
+-    fig = plt.figure(figsize=(9, 4.4))
+     for i, (s, (k, row)) in enumerate(picks.items()):
+         prof = c.centroids(root, labels, k[1])[labels[k][row]] if k[0] == 'human' else c.profiles(root, *k)[row]
+         v = c.mask_indices(root, *k)[row]
+-        ax = fig.add_axes([i / 3 + 0.03, 0.38, 0.27, 0.52], projection='polar')
++        ax = bottom.add_axes([i / 3 + 0.03, 0.34, 0.27, 0.48], projection='polar')
+         polar_profile(ax, [prof], [COLOR[k]], [None])
+         ax.set_title(f'{NAME[k[0]]} {k[1]} (vertex {v})', fontsize=8, pad=18)
+-        letter(ax, 'abc'[i], -0.28, 1.1)
+         location(ax, s, -0.05, 1.12)
+-        brain(fig.add_axes([i / 3 + 0.04, 0.0, 0.27, 0.3], projection='3d'), root, *k, marker=v)
+-    save(fig, f'{out}/main/Figure06_cross_species_profiles')
++        brain(bottom.add_axes([i / 3 + 0.04, 0.0, 0.27, 0.28], projection='3d'), root, *k, marker=v)
++    bottom.text(0.0, 1.0, 'c', fontsize=13, fontweight='bold', color=INK, va='top')
++    save(fig, f'{out}/main/Figure04_cross_species')
+ 
+ 
+ def gradient_grid(root, out, name, maps, keys, n_kept, n=10):
+-    """Supplementary Figures S1, S2 and S5: rows = G1..Gn, columns = hemispheres (and species).
++    """Supplementary Figures S1, S2 and S6: rows = G1..Gn, columns = hemispheres (and species).
+     Each row has one colour scale across its columns (1st-99th percentile); retained gradients are labelled in bold."""
+     fig = plt.figure(figsize=(1.9 * len(keys), 1.25 * n))
+     for g in range(n):
+@@ -298,7 +295,7 @@ def gradient_grid(root, out, name, maps, keys, n_kept, n=10):
+     save(fig, f'{out}/supplementary/{name}')
+ 
+ 
+-def figure_s6(out, seg):
++def figure_s7(out, seg):
+     fig, axes = plt.subplots(3, 3, figsize=(9, 8.4))
+     for g, ax in zip(range(1, 10), axes.flat):
+         for k in [('chimpanzee', 'L'), ('chimpanzee', 'R'), ('human', 'L'), ('human', 'R')]:
+@@ -307,10 +304,10 @@ def figure_s6(out, seg):
+         ax.set(xlabel='G1 (x 10$^{-3}$)', ylabel=f'G{g + 1} (x 10$^{{-3}}$)')
+     axes[0, 0].legend(frameon=False, markerscale=4, fontsize=6.5)
+     fig.tight_layout()
+-    save(fig, f'{out}/supplementary/FigureS6_cross_species_G1_vs_G2-G10')
++    save(fig, f'{out}/supplementary/FigureS7_cross_species_G1_vs_G2-G10')
+ 
+ 
+-def figure_s7(root, out, seg):
++def figure_s8(root, out, seg):
+     st = pd.read_csv(f'{root}/results/5_supplementary_statistics/g1_spread.csv').set_index('hemisphere')
+     fig, axes = plt.subplots(1, 2, figsize=(8, 2.8), sharey=True)
+     bins = np.linspace(-6, 9, 46)
+@@ -325,14 +322,14 @@ def figure_s7(root, out, seg):
+         ax.set_title('Left hemisphere' if h == 'L' else 'Right hemisphere', loc='left', fontsize=10)
+         ax.grid(axis='y', color=GRID, lw=0.6)
+     axes[0].set_ylabel('Number of profiles')
+-    save(fig, f'{out}/supplementary/FigureS7_G1_spread')
++    save(fig, f'{out}/supplementary/FigureS8_G1_spread')
+ 
+ 
+ def main(root, out):
+     ss = c.single_species(root)
+     seg, vertex, labels = c.cross_species(root)
+ 
+-    # Locations at the ends of cross-species G2 (Figures 5 and 6), chosen by rule rather than by hand.
++    # Locations at the ends of cross-species G2 (Figure 4), chosen by rule rather than by hand.
+     hum = min(c.HEMIS, key=lambda h: vertex[('human', h)][:, 1].min())
+     lab = labels[('human', hum)]
+     centroid = lab[np.argmin(vertex[('human', hum)][:, 1])]
+@@ -353,19 +350,18 @@ def main(root, out):
+     figure01(root, out)
+     species_figure(root, out, 'Figure02_chimpanzee_gradients', ss, 'chimpanzee', CHIMP_LOCATIONS, [(1, 'ABCD')])
+     species_figure(root, out, 'Figure03_human_gradients', ss, 'human', HUMAN_LOCATIONS, [(1, 'ABC'), (2, 'DE')])
+-    figure04(root, out, labels)
+-    figure05(root, out, seg, vertex, picks)
+-    figure06(root, out, labels, picks)
+-    null_figure(root, out, 'main/Figure07_lateralization_tests',
+-                [lr(sp, g, 'cross-species') for g in (1, 2) for sp in ('human', 'chimpanzee')])
+-    null_figure(root, out, 'main/Figure08_species_tests', [hc(h, g) for g in (1, 2) for h in c.HEMIS])
++    cross_species_figure(root, out, seg, vertex, labels, picks)
+     gradient_grid(root, out, 'FigureS1_human_gradients_G1-G10', ss, [('human', 'L'), ('human', 'R')], kept['human'])
+     gradient_grid(root, out, 'FigureS2_chimpanzee_gradients_G1-G10', ss, [('chimpanzee', 'L'), ('chimpanzee', 'R')], kept['chimpanzee'])
+-    null_figure(root, out, 'supplementary/FigureS3_chimpanzee_tests', [lr('chimpanzee', g, 'single-species') for g in (1, 2)])
+-    null_figure(root, out, 'supplementary/FigureS4_human_tests', [lr('human', g, 'single-species') for g in (1, 2, 3)], ncols=3)
+-    gradient_grid(root, out, 'FigureS5_cross_species_gradients_G1-G10', vertex, KEYS, kept['cross-species'])
+-    figure_s6(out, seg)
+-    figure_s7(root, out, seg)
++    null_figure(root, out, 'FigureS3_chimpanzee_tests', [lr('chimpanzee', g, 'single-species') for g in (1, 2)])
++    null_figure(root, out, 'FigureS4_human_tests', [lr('human', g, 'single-species') for g in (1, 2, 3)], ncols=3)
++    kmeans_figure(root, out, labels)
++    gradient_grid(root, out, 'FigureS6_cross_species_gradients_G1-G10', vertex, KEYS, kept['cross-species'])
++    figure_s7(out, seg)
++    figure_s8(root, out, seg)
++    null_figure(root, out, 'FigureS9_lateralization_tests',
++                [lr(sp, g, 'cross-species') for g in (1, 2) for sp in ('human', 'chimpanzee')])
++    null_figure(root, out, 'FigureS10_species_tests', [hc(h, g) for g in (1, 2) for h in c.HEMIS])
+ 
+ 
+ if __name__ == '__main__':
+-- 
+2.43.0
+
