@@ -5,7 +5,7 @@ results/5_supplementary_statistics/:
 
   tests.csv                  the 13 permutation tests (hemispheres within species, species within hemispheres) with Cohen's d, plus the same tests
                              on 50 and 100 spatially contiguous parcels per hemisphere
-  permutation_nulls.npz      the vertex-level null distributions of those 13 tests (Figures 7 and 8, Supplementary Figures S3 and S4)
+  permutation_nulls.npz      the vertex-level null distributions of those 13 tests (Supplementary Figures S3, S4, S9 and S10)
   g1_spread.csv              SD of cross-species G1, human centroids vs chimpanzee vertices (permutation test)
   g1_composition.csv         what lies behind the narrower human range on cross-species G1: interquartile range ratio,
                              SD ratio without mask-boundary vertices, profile entropy, and eta2 between the mean profiles
