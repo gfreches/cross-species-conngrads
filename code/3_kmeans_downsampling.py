@@ -4,7 +4,7 @@ The human profiles of each hemisphere are clustered into as many clusters as the
 temporal lobe vertices, so that both species enter the cross-species embedding with the same number of profiles.
 The centroid of a cluster is the mean profile of its vertices (common.centroids). Writes the cluster of every human
 temporal lobe vertex to results/3_kmeans_downsampling/human_kmeans_labels.npz and prints how well the centroids
-keep the similarity between vertices (Figure 8).
+keep the similarity between vertices (Figure 4).
 
 The right-hemisphere clustering comes out slightly differently on different computers (rounding in the float32
 k-means depends on the processor), so rerunning this script can replace the stored labels, which are the ones used
